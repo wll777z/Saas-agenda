@@ -1057,19 +1057,22 @@ async function applyPayment(env: Env, p: Row) {
     queries.push(
       stmt(
         db,
-        "UPDATE subscriptions SET plan=?,status='active',cycle_start=?,valid_until=strftime('%Y-%m-%dT%H:%M:%fZ',CASE WHEN status='trial' OR valid_until<? THEN ? ELSE valid_until END,'+1 month') WHERE tenant_id=? AND NOT EXISTS(SELECT 1 FROM payment_events WHERE id=? AND credited_at IS NOT NULL)",
+        "UPDATE subscriptions SET plan=?,status='active',cycle_start=?,valid_until=strftime('%Y-%m-%dT%H:%M:%fZ',CASE WHEN status='trial' OR valid_until<? THEN ? ELSE valid_until END,'+1 month') WHERE tenant_id=? AND NOT EXISTS(SELECT 1 FROM payment_events WHERE id=? AND credited_at IS NOT NULL) AND EXISTS(SELECT 1 FROM payment_events WHERE id=? AND (provider_updated_at IS NULL OR provider_updated_at<?))",
         e.plan,
         time,
         time,
         time,
         e.tenant_id,
         e.id,
+        e.id,
+        p.date_last_updated,
       ),
       stmt(
         db,
-        "UPDATE payment_events SET credited_at=COALESCE(credited_at,?) WHERE id=?",
+        "UPDATE payment_events SET credited_at=COALESCE(credited_at,?) WHERE id=? AND (provider_updated_at IS NULL OR provider_updated_at<?)",
         time,
         e.id,
+        p.date_last_updated,
       ),
     );
   }
@@ -1077,9 +1080,11 @@ async function applyPayment(env: Env, p: Row) {
     queries.push(
       stmt(
         db,
-        "UPDATE subscriptions SET status='past_due',valid_until=? WHERE tenant_id=?",
+        "UPDATE subscriptions SET status='past_due',valid_until=? WHERE tenant_id=? AND EXISTS(SELECT 1 FROM payment_events WHERE id=? AND (provider_updated_at IS NULL OR provider_updated_at<?))",
         time,
         e.tenant_id,
+        e.id,
+        p.date_last_updated,
       ),
     );
   queries.push(

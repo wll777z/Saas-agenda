@@ -2650,7 +2650,8 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                   value={accent}
                   onChange={(e) => setAccent(e.target.value)}
                 >
-                  <option value="#0071e3">Azul</option>
+                  <option value="#004dff">Azul cobalto</option>
+                  <option value="#0071e3">Azul clássico</option>
                   <option value="#267355">Verde</option>
                   <option value="#7251a1">Violeta</option>
                   <option value="#954f24">Terracota</option>
@@ -3536,8 +3537,10 @@ function Legal({ page }: { page: string }) {
             <h2>Planos e pagamentos</h2>
             <p>
               O teste dura 14 dias, sem cobrança automática. Solo custa R$49 e
-              Equipe R$99 por mês. Pix é um pagamento mensal avulso confirmado
-              pelo provedor. Não há renovação automática. Reservas canceladas
+              Equipe R$99 por mês. Pix é um pagamento mensal avulso. O Pix
+              direto é confirmado pelo responsável após conferir o extrato;
+              quando há provedor conectado, a confirmação pode ser automática
+              pela API. Não há renovação automática. Reservas canceladas
               continuam na contagem mensal; reagendamentos não contam novamente.
               O período de uso começa no primeiro dia do mês em UTC ou no início
               do ciclo contratado, o que ocorrer depois.
@@ -3562,9 +3565,14 @@ function Legal({ page }: { page: string }) {
             <h2>Acesso e fornecedores</h2>
             <p>
               O estabelecimento acessa seus próprios registros e restringe o
-              acesso de profissionais à agenda necessária ao trabalho. O projeto
-              utiliza Supabase para banco e autenticação, Mercado Pago para
-              cobrança de mensalidades e Resend para e-mail quando conectados.
+              acesso de profissionais à agenda necessária ao trabalho.{" "}
+              {process.env.NEXT_PUBLIC_SITES_RUNTIME === "true"
+                ? "Esta publicação utiliza banco D1 e armazenamento Cloudflare, com login administrativo gerenciado pelo ChatGPT."
+                : "A implantação alternativa utiliza Supabase para banco e autenticação."}{" "}
+              Mercado Pago pode ser conectado para confirmar mensalidades
+              automaticamente; Resend é usado para e-mail quando configurado. No
+              Pix direto, o responsável confere o extrato bancário antes de
+              liberar o plano.
             </p>
             <h2>Seus direitos</h2>
             <p>
