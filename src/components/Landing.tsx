@@ -13,6 +13,7 @@ import {
   Globe,
   Link2,
   Menu,
+  MousePointer2,
   Plus,
   Scissors,
   ShieldCheck,
@@ -23,6 +24,22 @@ import {
   Pause,
   Play,
 } from "lucide-react";
+function GlassTopic({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof CalendarDays;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="cl-eyebrow liquid-topic">
+      <span className="liquid-topic-symbol" aria-hidden="true">
+        <Icon size={16} />
+      </span>
+      <span>{children}</span>
+    </span>
+  );
+}
 export function CalendarSculpture() {
   return (
     <figure className="cl-calendar-art" data-motion>
@@ -368,6 +385,7 @@ function BookingFan() {
 }
 export default function Landing() {
   const [menu, setMenu] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
   const root = useRef<HTMLDivElement>(null);
   const [motionPaused, setMotionPaused] = useState(false);
   useEffect(() => {
@@ -396,6 +414,20 @@ export default function Landing() {
       document.removeEventListener("visibilitychange", syncMotion);
     };
   }, [motionPaused]);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries)
+          if (entry.isIntersecting) setActiveSection(entry.target.id);
+      },
+      { rootMargin: "-12% 0px -55% 0px", threshold: 0 },
+    );
+    root.current
+      ?.querySelectorAll("section[id]")
+      .forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
   return (
     <div ref={root} className="cl-site">
       <header className="cl-nav">
@@ -407,9 +439,40 @@ export default function Landing() {
           </span>
         </a>
         <nav aria-label="Navegação principal">
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#recursos">Recursos</a>
-          <a href="#planos">Planos</a>
+          <a
+            href="#como-funciona"
+            className={
+              activeSection === "como-funciona"
+                ? "liquid-nav-active"
+                : undefined
+            }
+            aria-current={
+              activeSection === "como-funciona" ? "location" : undefined
+            }
+            onClick={() => setActiveSection("como-funciona")}
+          >
+            Como funciona
+          </a>
+          <a
+            href="#recursos"
+            className={
+              activeSection === "recursos" ? "liquid-nav-active" : undefined
+            }
+            aria-current={activeSection === "recursos" ? "location" : undefined}
+            onClick={() => setActiveSection("recursos")}
+          >
+            Recursos
+          </a>
+          <a
+            href="#planos"
+            className={
+              activeSection === "planos" ? "liquid-nav-active" : undefined
+            }
+            aria-current={activeSection === "planos" ? "location" : undefined}
+            onClick={() => setActiveSection("planos")}
+          >
+            Planos
+          </a>
           <a href="/agendar">Agendar</a>
         </nav>
         <div className="cl-nav-right">
@@ -447,10 +510,9 @@ export default function Landing() {
       </header>
       <main>
         <section className="cl-hero">
-          <span className="cl-eyebrow">
-            <span />
+          <GlassTopic icon={CalendarDays}>
             AGENDAMENTO ONLINE PARA O SEU NEGÓCIO
-          </span>
+          </GlassTopic>
           <h1>
             Seu dia, <b>em ordem.</b>
             <br />
@@ -500,7 +562,7 @@ export default function Landing() {
           </div>
         </div>
         <section className="cl-section cl-intro" id="recursos" data-reveal>
-          <span className="cl-eyebrow">CLAREZA NA ROTINA</span>
+          <GlassTopic icon={Link2}>CLAREZA NA ROTINA</GlassTopic>
           <h2>
             Menos idas e vindas.
             <br />
@@ -540,8 +602,10 @@ export default function Landing() {
             ].map(({ I, n, title, description, tag }) => (
               <article key={n}>
                 <div className="cl-feature-icon">
-                  <I size={30} />
-                  <span>{n}</span>
+                  <span className="liquid-icon-shell">
+                    <I size={27} />
+                  </span>
+                  <span className="liquid-topic-number">{n}</span>
                 </div>
                 <h3>{title}</h3>
                 <p>{description}</p>
@@ -552,7 +616,9 @@ export default function Landing() {
         </section>
         <section className="cl-section cl-split" data-reveal>
           <div className="cl-split-copy">
-            <span className="cl-eyebrow">O ESSENCIAL. BEM RESOLVIDO.</span>
+            <GlassTopic icon={CalendarCheck}>
+              O ESSENCIAL. BEM RESOLVIDO.
+            </GlassTopic>
             <h2>
               Um olhar claro
               <br />
@@ -587,7 +653,9 @@ export default function Landing() {
         >
           <BookingFan />
           <div className="cl-split-copy">
-            <span className="cl-eyebrow">COMEÇAR PODE SER SIMPLES</span>
+            <GlassTopic icon={MousePointer2}>
+              COMEÇAR PODE SER SIMPLES
+            </GlassTopic>
             <h2>
               Configure.
               <br />
@@ -626,7 +694,7 @@ export default function Landing() {
         </section>
         <section className="cl-section cl-pix-section" data-reveal>
           <div>
-            <span className="cl-eyebrow">PAGUE DE ONDE ESTIVER</span>
+            <GlassTopic icon={Wallet}>PAGUE DE ONDE ESTIVER</GlassTopic>
             <h2>
               Uma mensalidade.
               <br />
@@ -670,7 +738,7 @@ export default function Landing() {
           </div>
         </section>
         <section className="cl-section cl-plans" id="planos" data-reveal>
-          <span className="cl-eyebrow">CRESÇA NO SEU RITMO</span>
+          <GlassTopic icon={Users}>CRESÇA NO SEU RITMO</GlassTopic>
           <h2>
             Um plano para
             <br />
@@ -740,7 +808,7 @@ export default function Landing() {
         </section>
         <section className="cl-section cl-faq" data-reveal>
           <div>
-            <span className="cl-eyebrow">SEM PONTAS SOLTAS</span>
+            <GlassTopic icon={ShieldCheck}>SEM PONTAS SOLTAS</GlassTopic>
             <h2>
               Vamos deixar
               <br />
@@ -777,7 +845,9 @@ export default function Landing() {
               <details key={q}>
                 <summary>
                   {q}
-                  <Plus size={18} />
+                  <span className="liquid-faq-plus" aria-hidden="true">
+                    <Plus size={18} />
+                  </span>
                 </summary>
                 <p>{a}</p>
               </details>
@@ -785,7 +855,7 @@ export default function Landing() {
           </div>
         </section>
         <section className="cl-section cl-closing" data-reveal>
-          <span className="cl-eyebrow">SEU TEMPO MERECE CLAREZA</span>
+          <GlassTopic icon={Clock}>SEU TEMPO MERECE CLAREZA</GlassTopic>
           <h2>
             Abra espaço para
             <br />

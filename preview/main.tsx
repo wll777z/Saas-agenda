@@ -4,6 +4,7 @@ import App from "../src/components/App";
 import "../src/app/globals.css";
 import "../src/app/redesign.css";
 import "../src/app/product-features.css";
+import "../src/app/liquid-glass.css";
 const root = document.getElementById("root")!;
 if (root.dataset.ssr === "true") hydrateRoot(root, <App />);
 else createRoot(root).render(<App />);

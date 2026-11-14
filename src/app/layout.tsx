@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./redesign.css";
 import "./product-features.css";
+import "./liquid-glass.css";
 export const metadata: Metadata = {
   title: "Agenda Clara — Mais tempo para o que importa",
   description:
