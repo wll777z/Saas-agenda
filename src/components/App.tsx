@@ -44,6 +44,8 @@ import { supabase, configured, api } from "@/lib/supabase";
 import { money, plans, statusLabel, PIX_KEY } from "@/lib/config";
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import QRCode from "qrcode";
+import LandingV2 from "./Landing";
+import { HostedAuth, Directory } from "./Hosted";
 // Demo lives only in memory and never uses production APIs.
 type Row = Record<string, any>;
 const today = () =>
@@ -78,9 +80,11 @@ function Button({
   return <button {...p}>{children}</button>;
 }
 const brandingUrl = (path: string) =>
-  process.env.NEXT_PUBLIC_SUPABASE_URL +
-  "/storage/v1/object/public/business-branding/" +
-  path.split("/").map(encodeURIComponent).join("/");
+  process.env.NEXT_PUBLIC_SITES_RUNTIME === "true"
+    ? "/brand/" + path.split("/").map(encodeURIComponent).join("/")
+    : process.env.NEXT_PUBLIC_SUPABASE_URL +
+      "/storage/v1/object/public/business-branding/" +
+      path.split("/").map(encodeURIComponent).join("/");
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="field">
@@ -254,7 +258,14 @@ function Preview() {
 function Landing() {
   return (
     <>
-      {process.env.NEXT_PUBLIC_PREVIEW_ONLY==='true'&&<div className="site-preview-bar"><span>Prévia navegável da Agenda Clara</span><a href="/demo">Abrir demonstração do painel <ArrowUpRight size={15}/></a></div>}
+      {process.env.NEXT_PUBLIC_PREVIEW_ONLY === "true" && (
+        <div className="site-preview-bar">
+          <span>Prévia navegável da Agenda Clara</span>
+          <a href="/demo">
+            Abrir demonstração do painel <ArrowUpRight size={15} />
+          </a>
+        </div>
+      )}
       <header className="landing-nav">
         <Brand />
         <nav>
@@ -986,7 +997,8 @@ const demoAppointments = () => [
 ];
 function Dashboard({ demo = false }: { demo?: boolean }) {
   const router = useRouter();
-  const [view, setView] = useState("Hoje");
+  const dashboardPath = usePathname();
+  const [view, setView] = useState(dashboardPath === "/pix" ? "Pix" : "Hoje");
   const [loading, setLoading] = useState(!demo);
   const [tenants, setTenants] = useState<Row[]>(demo ? [demoTenant] : []);
   const [tenantId, setTenantId] = useState(demo ? "demo" : "");
@@ -1749,6 +1761,16 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
           )}
           {view === "Mais" && (
             <>
+              {health.operator && (
+                <a href="/operacao" className="full-link">
+                  <ShieldCheck size={22} />
+                  <div>
+                    <b>Operação da plataforma</b>
+                    <p>Conferir Pix recebidos e acompanhar negócios.</p>
+                  </div>
+                  <ArrowRight size={20} />
+                </a>
+              )}
               <div className="settings-grid">
                 {[
                   {
@@ -1826,10 +1848,78 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                 {demo
                   ? "Pagamentos desabilitados na demonstração."
                   : health.pix
-                    ? "Mercado Pago conectado. A confirmação do provedor libera o plano."
-                    : "Pagamento ainda indisponível. O proprietário da plataforma precisa conectar o Mercado Pago."}{" "}
+                    ? health.pixMode === "direct"
+                      ? "Pix direto disponível. O responsável confirma o recebimento após conferir o extrato."
+                      : "Mercado Pago conectado. A confirmação do provedor libera o plano."
+                    : "Falta confirmar o titular e a cidade da chave Pix ou conectar um provedor para habilitar cobranças."}{" "}
                 O Pix paga um mês e não renova automaticamente.
               </Notice>
+              {health.operator &&
+                health.runtime === "sites" &&
+                health.pixMode === "direct" && (
+                  <details className="pix-settings" open={!health.pix}>
+                    <summary>
+                      <Settings size={17} />
+                      {health.pix
+                        ? "Editar dados do meu Pix"
+                        : "Configurar meu Pix para receber"}
+                    </summary>
+                    <p>
+                      Chave já preenchida: <b>{PIX_KEY}</b>. Informe o titular e
+                      a cidade conforme seu banco. Os clientes poderão pagar o
+                      QR Code remotamente; você confere o extrato antes de
+                      liberar o plano.
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const f = new FormData(e.currentTarget);
+                        action(async () => {
+                          await api("pix-settings", {
+                            name: f.get("name"),
+                            city: f.get("city"),
+                            registered: f.get("registered") === "on",
+                          });
+                          setHealth(await api("health"));
+                          setMsg(
+                            "Pix configurado. Agora você pode gerar QR Code e copia e cola.",
+                          );
+                        });
+                      }}
+                    >
+                      <div className="form-row">
+                        <Field label="Nome do titular da chave">
+                          <input
+                            name="name"
+                            required
+                            minLength={2}
+                            maxLength={100}
+                            defaultValue={health.pixReceiver ?? ""}
+                            autoComplete="name"
+                          />
+                        </Field>
+                        <Field label="Cidade da conta">
+                          <input
+                            name="city"
+                            required
+                            minLength={2}
+                            maxLength={80}
+                            defaultValue={health.pixCity ?? ""}
+                            autoComplete="address-level2"
+                          />
+                        </Field>
+                      </div>
+                      <label className="checkbox">
+                        <input name="registered" type="checkbox" required />
+                        Confirmo que esta chave está cadastrada no meu banco e
+                        posso receber nela.
+                      </label>
+                      <Button disabled={busy}>
+                        Salvar e ativar Pix direto <Check size={17} />
+                      </Button>
+                    </form>
+                  </details>
+                )}
               <div className="pix-layout">
                 <section className="data-panel padded">
                   <div className="section-top">
@@ -1899,6 +1989,23 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                   {pix && (
                     <div className="pix-code">
                       <h3>Escaneie ou copie. Pague de onde estiver.</h3>
+                      {pix.mode === "direct" && (
+                        <div className="pix-direct-notice">
+                          Pix direto para a chave informada. O plano será
+                          liberado depois que o responsável conferir o
+                          recebimento no banco. Clicar em “Já paguei” não
+                          confirma a transferência.
+                        </div>
+                      )}
+                      {pix.receiver && (
+                        <div className="pix-receiver">
+                          <small>Favorecido informado</small>
+                          <b>{pix.receiver}</b>
+                          <small>
+                            {PIX_KEY} · {pix.city}
+                          </small>
+                        </div>
+                      )}
                       {pix.image && (
                         <img
                           src={"data:image/png;base64," + pix.image}
@@ -1916,8 +2023,12 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                         Copiar código Pix <Copy size={17} />
                       </Button>
                       <p>
-                        Válido até {timeLabel(pix.expires, tz)}. Confira o
-                        favorecido no seu banco.
+                        {pix.mode === "direct"
+                          ? "Esta referência fica no painel por 24 horas. O código Pix estático não expira no banco. Evite pagar duas vezes."
+                          : "Válido até " +
+                            timeLabel(pix.expires, tz) +
+                            "."}{" "}
+                        Confira o favorecido no seu banco antes de concluir.
                       </p>
                       <Button
                         disabled={busy}
@@ -1930,7 +2041,9 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                             setMsg(
                               p.status === "approved"
                                 ? "Pagamento confirmado. Seu plano está ativo."
-                                : "Pagamento ainda não confirmado pelo provedor.",
+                                : p.mode === "direct"
+                                  ? "O recebimento ainda não foi conferido pelo responsável."
+                                  : "Pagamento ainda não confirmado pelo provedor.",
                             );
                           })
                         }
@@ -1967,15 +2080,18 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                       no pagamento.
                     </h3>
                     <p>
-                      A liberação depende da confirmação segura do provedor.
+                      {health.pixMode === "direct"
+                        ? "No Pix direto, o responsável confere o extrato e libera o plano pelo painel de operação."
+                        : "A liberação depende da confirmação segura do provedor."}{" "}
                       Comprovantes e retorno de tela não ativam planos.
                     </p>
                     <hr />
-                    <small>Chave de referência do proprietário</small>
+                    <small>Chave Pix do responsável</small>
                     <p className="pix-reference">{PIX_KEY}</p>
                     <small>
-                      A chave informada não é uma cobrança. O QR Code será
-                      gerado pela conta do Mercado Pago conectada.
+                      {health.pixMode === "direct"
+                        ? "O QR Code copia e cola é gerado com esta chave. Confira o titular mostrado pelo seu banco."
+                        : "Com Mercado Pago conectado, o QR Code é gerado pela conta credenciada no provedor."}
                     </small>
                   </div>
                 </aside>
@@ -2870,7 +2986,8 @@ function Booking({
         </p>
         <p className="muted">
           Protocolo: {success.id.slice(0, 8).toUpperCase()}. Guarde o link
-          abaixo. O e-mail será enviado quando o provedor estiver conectado.
+          abaixo. Guarde este link. Confirmações por e-mail dependem do
+          remetente conectado.
         </p>
         <a className="button" href={"/reserva/" + success.token}>
           Gerenciar minha reserva <ArrowRight size={17} />
@@ -3552,6 +3669,62 @@ function Operations() {
                 </div>
               ))}
             </section>
+            {data.payments && (
+              <section className="data-panel padded">
+                <h2>Pix recebidos · conferência</h2>
+                <p className="muted small-text">
+                  Confira valor, remetente e referência no seu extrato antes de
+                  aprovar. Nenhum pagamento é confirmado apenas pelo clique do
+                  cliente.
+                </p>
+                {data.payments
+                  .filter((p: Row) => p.mode === "direct")
+                  .map((p: Row) => (
+                    <div className="payment-review" key={p.id}>
+                      <div className="section-top">
+                        <b>
+                          {p.business} · {plans[p.plan as "solo"]?.name}
+                        </b>
+                        <b>{money(p.amount)}</b>
+                      </div>
+                      <small>
+                        {p.id} · {statusLabel[p.status] ?? p.status}
+                      </small>
+                      {p.status === "pending" && (
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            try {
+                              await api("approve-payment", {
+                                id: p.id,
+                                confirmed: true,
+                              });
+                              setData(await api("operations"));
+                              setMsg(
+                                "Recebimento registrado. Plano liberado uma única vez.",
+                              );
+                            } catch (error) {
+                              setMsg((error as Error).message);
+                            }
+                          }}
+                        >
+                          <label className="checkbox">
+                            <input type="checkbox" required />
+                            Conferi este recebimento no extrato do banco.
+                          </label>
+                          <Button>
+                            Confirmar recebimento e liberar plano{" "}
+                            <Check size={16} />
+                          </Button>
+                        </form>
+                      )}
+                    </div>
+                  ))}
+                {!data.payments.some((p: Row) => p.mode === "direct") && (
+                  <p>Nenhuma cobrança Pix direta gerada.</p>
+                )}
+              </section>
+            )}
             <Notice>
               Acesso excepcional de suporte a dados privados não é
               disponibilizado por este painel. Falhas precisam ser investigadas
@@ -3566,10 +3739,15 @@ function Operations() {
 export default function App() {
   const path = usePathname();
   if (path === "/operacao") return <Operations />;
-  if (path === "/") return <Landing />;
+  if (path === "/") return <LandingV2 />;
+  if (path === "/agendar") return <Directory />;
   if (["/entrar", "/cadastro", "/recuperar"].includes(path))
-    return <Auth mode={path.slice(1)} />;
-  if (path === "/painel" || path === "/demo")
+    return process.env.NEXT_PUBLIC_SITES_RUNTIME === "true" ? (
+      <HostedAuth mode={path.slice(1)} />
+    ) : (
+      <Auth mode={path.slice(1)} />
+    );
+  if (path === "/painel" || path === "/demo" || path === "/pix")
     return <Dashboard demo={path === "/demo"} />;
   if (path.startsWith("/a/"))
     return (

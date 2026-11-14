@@ -1,8 +1,10 @@
 # Agenda Clara
 
+**Atualização:** o endereço Sites agora tem um runtime próprio com API, login ChatGPT e banco D1. Consulte [o guia da publicação atual](docs/ATUALIZACAO-SITES.md). As instruções Supabase abaixo pertencem à implantação alternativa Next.js.
+
 SaaS de agendamento em português, com Next.js, React, TypeScript, Supabase/PostgreSQL, Mercado Pago (Pix mensal avulso) e Resend. Interface responsiva com navegação inferior no celular, site comercial e demonstração separada em memória.
 
-**Estado da entrega:** implementação no repositório; não é uma operação de produção ativada. São necessárias contas externas, variáveis, migrations e validação de ponta a ponta com os serviços reais. Sem credenciais, reservas reais, envio de e-mail e Pix ficam indisponíveis, com estado explícito. Nenhum recebimento foi testado com dinheiro real.
+**Estado da implantação alternativa Next.js:** implementação no repositório; exige as conexões abaixo. São necessárias contas externas, variáveis, migrations e validação de ponta a ponta com os serviços reais. Sem credenciais, reservas reais, envio de e-mail e Pix ficam indisponíveis, com estado explícito. Nenhum recebimento foi testado com dinheiro real.
 
 ## Começar
 
@@ -100,4 +102,4 @@ As variáveis públicas `NEXT_PUBLIC_OPERATOR_NAME`, `NEXT_PUBLIC_OPERATOR_DOCUM
 
 ## Prévia navegável no ChatGPT
 
-`npm run build:preview` usa o mesmo frontend React para construir uma prévia estática em `dist/`, com página comercial e painel fictício em `/demo`. Nessa publicação, banco, autenticação, reservas reais e pagamentos ficam desabilitados explicitamente. A aplicação Next.js completa continua sendo construída por `npm run build`. O manifesto `.openai/hosting.json` identifica somente essa prévia no Sites.
+`npm run build:preview` usa o mesmo frontend React para construir uma prévia estática em `dist/`, com página comercial e painel fictício em `/demo`. Nessa publicação, banco, autenticação, reservas reais e pagamentos ficam desabilitados explicitamente. A aplicação Next.js completa continua sendo construída por `npm run build`. O manifesto `.openai/hosting.json` agora identifica o Worker com backend D1; use `npm run build:sites` para republicar o endereço funcional.
