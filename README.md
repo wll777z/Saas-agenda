@@ -97,3 +97,7 @@ As skills de design citadas no briefing não estavam instaladas. Foram usados os
 ## Contato e documentos
 
 As variáveis públicas `NEXT_PUBLIC_OPERATOR_NAME`, `NEXT_PUBLIC_OPERATOR_DOCUMENT`, `NEXT_PUBLIC_SUPPORT_EMAIL` e `NEXT_PUBLIC_RETENTION_POLICY` permitem informar o responsável real, contato e política de retenção sem alterar código. São informações exibidas aos visitantes, não segredos. Preencha somente dados verdadeiros, revise os textos legais e reconstrua a aplicação após alterar variáveis públicas.
+
+## Prévia navegável no ChatGPT
+
+`npm run build:preview` usa o mesmo frontend React para construir uma prévia estática em `dist/`, com página comercial e painel fictício em `/demo`. Nessa publicação, banco, autenticação, reservas reais e pagamentos ficam desabilitados explicitamente. A aplicação Next.js completa continua sendo construída por `npm run build`. O manifesto `.openai/hosting.json` identifica somente essa prévia no Sites.

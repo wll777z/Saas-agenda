@@ -10,6 +10,10 @@ export const supabase = configured
     )
   : null;
 export async function api(path: string, body?: unknown, method?: string) {
+  if(process.env.NEXT_PUBLIC_PREVIEW_ONLY==='true'){
+    if(path==='health')return {database:false,pix:false,email:false};
+    throw new Error('Esta é a prévia navegável. As reservas e pagamentos reais serão habilitados após conectar os serviços. Explore o painel em Demonstração.');
+  }
   const session = await supabase?.auth.getSession();
   const response = await fetch("/api/" + path, {
     method: method ?? (body ? "POST" : "GET"),

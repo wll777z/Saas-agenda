@@ -254,6 +254,7 @@ function Preview() {
 function Landing() {
   return (
     <>
+      {process.env.NEXT_PUBLIC_PREVIEW_ONLY==='true'&&<div className="site-preview-bar"><span>Prévia navegável da Agenda Clara</span><a href="/demo">Abrir demonstração do painel <ArrowUpRight size={15}/></a></div>}
       <header className="landing-nav">
         <Brand />
         <nav>
