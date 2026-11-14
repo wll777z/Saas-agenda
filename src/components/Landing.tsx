@@ -13,7 +13,6 @@ import {
   Globe,
   Link2,
   Menu,
-  MousePointer2,
   Plus,
   Scissors,
   ShieldCheck,
@@ -21,80 +20,226 @@ import {
   Users,
   Wallet,
   X,
+  Pause,
+  Play,
 } from "lucide-react";
 export function CalendarSculpture() {
   return (
-    <div
-      className="cl-sculpture"
-      role="img"
-      aria-label="Ilustração animada de um calendário: um horário é escolhido e o agendamento aparece confirmado"
-    >
-      <div className="cl-calendar-shadow" />
-      <div className="cl-calendar-sheet sheet-back">
-        <span>Seu tempo.</span>
-      </div>
-      <div className="cl-calendar-sheet sheet-middle">
-        <span>Seu ritmo.</span>
-      </div>
-      <div className="cl-calendar-object">
-        <div className="cl-rings">
-          <i />
-          <i />
-        </div>
-        <div className="cl-cal-bar">
-          <span>NOVEMBRO</span>
-          <span>2026</span>
-        </div>
-        <div className="cl-cal-week">
-          {["S", "T", "Q", "Q", "S", "S", "D"].map((s, i) => (
-            <span key={i}>{s}</span>
+    <figure className="cl-calendar-art" data-motion>
+      <svg
+        viewBox="0 0 720 430"
+        className="cl-calendar-svg"
+        role="img"
+        aria-labelledby="calendar-art-title calendar-art-description"
+      >
+        <title id="calendar-art-title">Seu próximo encontro, organizado.</title>
+        <desc id="calendar-art-description">
+          Calendário ilustrativo com um horário disponível e uma reserva
+          confirmada. As informações permanecem visíveis durante a animação.
+        </desc>
+        <rect x="12" y="30" width="696" height="338" rx="32" fill="#d9e4ff" />
+        <circle cx="597" cy="114" r="57" fill="#e6c5f7" />
+        <circle cx="115" cy="286" r="43" fill="#c8d8ff" />
+        <g transform="rotate(-8 351 190)">
+          <rect
+            x="207"
+            y="45"
+            width="292"
+            height="291"
+            rx="8"
+            fill="#e6c5f7"
+            stroke="#c7ade0"
+          />
+        </g>
+        <g transform="rotate(6 362 192)">
+          <rect
+            x="225"
+            y="46"
+            width="292"
+            height="291"
+            rx="8"
+            fill="#afc5ff"
+            stroke="#9eb8f5"
+          />
+        </g>
+        <g className="cl-art-calendar">
+          <rect
+            x="214"
+            y="37"
+            width="292"
+            height="300"
+            rx="8"
+            fill="#fff"
+            stroke="#bdcae7"
+          />
+          <rect x="214" y="37" width="292" height="61" rx="8" fill="#004dff" />
+          <rect x="214" y="87" width="292" height="11" fill="#004dff" />
+          <rect
+            x="262"
+            y="27"
+            width="9"
+            height="22"
+            rx="4"
+            fill="#fff"
+            stroke="#183b90"
+            strokeWidth="2"
+          />
+          <rect
+            x="449"
+            y="27"
+            width="9"
+            height="22"
+            rx="4"
+            fill="#fff"
+            stroke="#183b90"
+            strokeWidth="2"
+          />
+          <text
+            x="238"
+            y="74"
+            fill="#fff"
+            fontSize="14"
+            fontWeight="500"
+            letterSpacing="1.2"
+          >
+            NOVEMBRO
+          </text>
+          <text x="479" y="74" fill="#d9e4ff" fontSize="12" textAnchor="end">
+            2026
+          </text>
+          {["S", "T", "Q", "Q", "S", "S", "D"].map((d, i) => (
+            <text
+              key={i}
+              x={244 + i * 38}
+              y="125"
+              textAnchor="middle"
+              fill="#68748d"
+              fontSize="10"
+            >
+              {d}
+            </text>
           ))}
-        </div>
-        <div className="cl-cal-grid">
-          {Array.from({ length: 28 }, (_, i) => (
-            <span key={i} className={i === 18 ? "cl-chosen-day" : ""}>
-              {i + 1}
-              {i === 18 && <i />}
-            </span>
-          ))}
-        </div>
-        <div className="cl-cal-object-footer">
-          <span className="cl-indicator" />O próximo encontro começa aqui.
-        </div>
-      </div>
-      <div className="cl-floating-time">
-        <Clock size={15} />
-        <span>14:30</span>
-        <span>disponível</span>
-      </div>
-      <div className="cl-floating-booking">
-        <span className="cl-booking-avatar">M</span>
-        <div>
-          <b>Marina confirmou.</b>
-          <span>Corte e finalização · 14:30</span>
-        </div>
-        <span className="cl-check-icon">
-          <Check size={15} />
-        </span>
-      </div>
-      <div className="cl-calendar-cursor">
-        <MousePointer2 size={28} fill="#000" color="#fff" />
-        <span>Seu cliente</span>
-      </div>
-      <div className="cl-sculpture-caption">
-        <span>01 — ESCOLHER</span>
-        <span>02 — RESERVAR</span>
-        <span>03 — ORGANIZAR</span>
-      </div>
-      <span className="cl-illustration-label">
-        ILUSTRAÇÃO DO FLUXO · DADOS FICTÍCIOS
-      </span>
-    </div>
+          {Array.from({ length: 28 }, (_, i) => {
+            const x = 244 + (i % 7) * 38,
+              y = 158 + Math.floor(i / 7) * 38;
+            return (
+              <g key={i}>
+                {i === 18 && (
+                  <rect
+                    className="cl-art-date"
+                    x={x - 15}
+                    y={y - 20}
+                    width="30"
+                    height="31"
+                    rx="5"
+                    fill="#004dff"
+                  />
+                )}
+                <text
+                  x={x}
+                  y={y}
+                  fill={i === 18 ? "#fff" : "#172343"}
+                  textAnchor="middle"
+                  fontSize="13"
+                  fontWeight={i === 18 ? "600" : "400"}
+                >
+                  {i + 1}
+                </text>
+              </g>
+            );
+          })}
+          <path d="M236 292H484" stroke="#e5e7eb" />
+          <circle cx="241" cy="313" r="3" fill="#004dff" />
+          <text x="253" y="317" fontSize="9" fill="#53617d">
+            Cada horário no seu lugar.
+          </text>
+        </g>
+        <g transform="translate(51 167)">
+          <g className="cl-art-time">
+            <rect width="186" height="57" rx="7" fill="#fff" stroke="#b6c7ef" />
+            <circle
+              cx="25"
+              cy="28"
+              r="8"
+              fill="none"
+              stroke="#004dff"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M25 23V28L29 30"
+              fill="none"
+              stroke="#004dff"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <text x="43" y="34" fill="#16294e" fontSize="15" fontWeight="500">
+              14:30
+            </text>
+            <path d="M95 17V40" stroke="#e5e7eb" />
+            <text x="108" y="33" fill="#5c6d8e" fontSize="11">
+              disponível
+            </text>
+          </g>
+        </g>
+        <g transform="translate(364 285)">
+          <g className="cl-art-booking">
+            <rect width="302" height="73" rx="7" fill="#fff" stroke="#bdc8e3" />
+            <rect x="15" y="17" width="39" height="39" rx="6" fill="#e6c5f7" />
+            <text
+              x="34.5"
+              y="42"
+              textAnchor="middle"
+              fill="#4c276b"
+              fontSize="17"
+            >
+              M
+            </text>
+            <text x="68" y="32" fill="#122346" fontSize="13" fontWeight="500">
+              Marina confirmou.
+            </text>
+            <text x="68" y="50" fill="#68748d" fontSize="10">
+              Corte e finalização · 14:30
+            </text>
+            <circle cx="272" cy="36.5" r="12" fill="#004dff" />
+            <path
+              d="M267 36.5L270.5 40L277 33"
+              stroke="#fff"
+              fill="none"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+        </g>
+        {[
+          { x: 138, label: "ESCOLHER", n: "01" },
+          { x: 321, label: "RESERVAR", n: "02" },
+          { x: 501, label: "ORGANIZAR", n: "03" },
+        ].map(({ x, label, n }) => (
+          <g key={n} transform={"translate(" + x + " 390)"}>
+            <circle r="11" fill={n === "03" ? "#004dff" : "#edf2ff"} />
+            <text
+              textAnchor="middle"
+              y="3"
+              fill={n === "03" ? "#fff" : "#004dff"}
+              fontSize="8"
+              fontWeight="500"
+            >
+              {n}
+            </text>
+            <text x="20" y="3" fill="#4e6084" fontSize="9" letterSpacing=".8">
+              {label}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <figcaption>Ilustração do fluxo · dados fictícios</figcaption>
+    </figure>
   );
 }
 function LiveAgenda() {
   return (
-    <div className="cl-agenda-visual">
+    <div className="cl-agenda-visual" data-motion>
       <div className="cl-mini-app">
         <div className="cl-mini-sidebar">
           <span className="cl-mini-logo">
@@ -172,52 +317,85 @@ function LiveAgenda() {
 }
 function BookingFan() {
   return (
-    <div className="cl-booking-fan" aria-hidden="true">
-      <div className="cl-fan-sheet fan-one">
-        <span>01</span>
-        <CalendarDays />
-        <b>Escolha um dia.</b>
-      </div>
-      <div className="cl-fan-sheet fan-two">
-        <span>02</span>
-        <Clock />
-        <b>Encontre seu horário.</b>
-        <div>
-          <i>09:00</i>
-          <i>10:30</i>
-          <i>14:30</i>
+    <div
+      className="cl-process-visual"
+      data-motion
+      aria-label="Três etapas do agendamento"
+    >
+      <span className="cl-process-label">
+        DO PRIMEIRO CLIQUE AO PRÓXIMO ENCONTRO
+      </span>
+      {[
+        {
+          I: CalendarDays,
+          n: "01",
+          title: "Escolha um dia.",
+          detail: "No seu ritmo.",
+          type: "day",
+        },
+        {
+          I: Clock,
+          n: "02",
+          title: "Encontre seu horário.",
+          detail: "09:00 · 10:30 · 14:30",
+          type: "time",
+        },
+        {
+          I: Check,
+          n: "03",
+          title: "Encontro marcado.",
+          detail: "Simples assim.",
+          type: "done",
+        },
+      ].map(({ I, n, title, detail, type }) => (
+        <div className={"cl-process-card cl-process-" + type} key={n}>
+          <span className="cl-process-icon">
+            <I size={25} />
+          </span>
+          <div>
+            <b>{title}</b>
+            <small>{detail}</small>
+          </div>
+          <span className="cl-process-number">{n}</span>
         </div>
-      </div>
-      <div className="cl-fan-sheet fan-three">
-        <span>03</span>
-        <span className="cl-fan-check">
-          <Check size={30} />
-        </span>
-        <b>Encontro marcado.</b>
-        <small>Simples assim.</small>
-      </div>
+      ))}
+      <span className="cl-process-footer">
+        <ShieldCheck size={14} />
+        Cada etapa, no seu lugar.
+      </span>
     </div>
   );
 }
 export default function Landing() {
   const [menu, setMenu] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const [motionPaused, setMotionPaused] = useState(false);
   useEffect(() => {
+    const current = root.current;
+    if (!current) return;
+    const syncMotion = () => {
+      current.dataset.motionSuspended = String(motionPaused || document.hidden);
+    };
+    syncMotion();
+    document.addEventListener("visibilitychange", syncMotion);
+    const visuals = current.querySelectorAll<HTMLElement>("[data-motion]");
+    if (typeof IntersectionObserver === "undefined") {
+      visuals.forEach((el) => el.classList.add("is-in-view"));
+      return () => document.removeEventListener("visibilitychange", syncMotion);
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries)
-          if (entry.isIntersecting) {
-            entry.target.classList.add("revealed");
-            observer.unobserve(entry.target);
-          }
+          entry.target.classList.toggle("is-in-view", entry.isIntersecting);
       },
-      { threshold: 0.12 },
+      { threshold: 0.05 },
     );
-    root.current
-      ?.querySelectorAll("[data-reveal]")
-      .forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+    visuals.forEach((el) => observer.observe(el));
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", syncMotion);
+    };
+  }, [motionPaused]);
   return (
     <div ref={root} className="cl-site">
       <header className="cl-nav">
@@ -303,6 +481,14 @@ export default function Landing() {
             </span>
           </div>
           <CalendarSculpture />
+          <button
+            className="cl-motion-toggle"
+            aria-pressed={motionPaused}
+            onClick={() => setMotionPaused((value) => !value)}
+          >
+            {motionPaused ? <Play size={13} /> : <Pause size={13} />}{" "}
+            {motionPaused ? "Retomar animações" : "Pausar animações"}
+          </button>
         </section>
         <div className="cl-audience">
           <span>UM ESPAÇO PARA QUEM ATENDE PESSOAS.</span>
@@ -454,7 +640,7 @@ export default function Landing() {
               Abrir Pix e assinatura <ArrowUpRight size={16} />
             </a>
           </div>
-          <div className="cl-pix-illustration">
+          <div className="cl-pix-illustration" data-motion>
             <div className="cl-pix-sheet">
               <Wallet size={27} />
               <span>AGENDA CLARA · SOLO</span>
