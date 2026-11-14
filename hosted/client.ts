@@ -27,6 +27,7 @@ class Query implements PromiseLike<any> {
   table: string;
   filters: Record<string, unknown> = {};
   sorting: any = null;
+  range: Record<string, string> = {};
   singleRow = false;
   columns = "*";
   constructor(table: string) {
@@ -38,6 +39,14 @@ class Query implements PromiseLike<any> {
   }
   eq(key: string, value: unknown) {
     this.filters[key] = value;
+    return this;
+  }
+  gte(key: string, value: string) {
+    if (key === "starts_at") this.range.from = value;
+    return this;
+  }
+  lt(key: string, value: string) {
+    if (key === "starts_at") this.range.to = value;
     return this;
   }
   order(key: string, options?: any) {
@@ -59,6 +68,7 @@ class Query implements PromiseLike<any> {
     return api("data/query", {
       table: this.table,
       filters: this.filters,
+      range: this.range,
       sorting: this.sorting,
       columns: this.columns,
       single: this.singleRow,

@@ -449,7 +449,7 @@ export default function Landing() {
         <section className="cl-hero">
           <span className="cl-eyebrow">
             <span />
-            MENOS MENSAGENS. MAIS ENCONTROS.
+            AGENDAMENTO ONLINE PARA O SEU NEGÓCIO
           </span>
           <h1>
             Seu dia, <b>em ordem.</b>
@@ -457,9 +457,9 @@ export default function Landing() {
             Seu tempo, <b>de volta.</b>
           </h1>
           <p>
-            Uma agenda que trabalha com você.
+            Seus clientes reservam pelo link. Você acompanha tudo pelo celular.
             <br />
-            Seu cliente escolhe o horário. Você cuida do que faz de melhor.
+            Mais clareza para quem atende. Mais facilidade para quem agenda.
           </p>
           <div className="cl-hero-actions">
             <a className="cl-button cl-button-primary" href="/cadastro">
@@ -565,7 +565,7 @@ export default function Landing() {
             </p>
             <ul>
               <li>
-                <Check size={16} /> Sua agenda por dia ou por semana.
+                <Check size={16} /> Sua agenda por dia, semana, mês ou lista.
               </li>
               <li>
                 <Check size={16} /> Cancelamentos e reagendamentos sem confusão.
@@ -771,7 +771,7 @@ export default function Landing() {
               ],
               [
                 "O WhatsApp envia mensagens sozinho?",
-                "O botão abre uma conversa com texto pronto para você enviar. Não é uma automação. Confirmações por e-mail dependem do remetente conectado.",
+                "O compartilhamento abre uma conversa para você enviar. Para confirmações e lembretes automáticos, é preciso conectar o WhatsApp oficial da Meta, aprovar os modelos e ter a autorização do cliente. Sem essa conexão, o site não apresenta mensagens como enviadas.",
               ],
             ].map(([q, a]) => (
               <details key={q}>

@@ -16,3 +16,12 @@
 Os botões principais ficam no menu inferior. A visualização inicial é diária. Semana mostra uma lista dos sete dias a partir da data selecionada, sem exigir arrastar compromissos. Indicadores respeitam o período visível e permissões; “valor dos serviços realizados” não é dinheiro recebido.
 
 Integrações pendentes aparecem em **Mais → Conexões**. Não divulgue a agenda a clientes enquanto não concluir os requisitos de produção.
+
+## Novidades da revisão de 14/11/2026
+
+- O botão de ajuda do painel reabre os três primeiros passos. O checklist acompanha a configuração real do negócio.
+- **Dia / Semana / Mês / Lista** mudam o período. Toque no sinal + de uma data/grade para iniciar uma reserva manual. Um espaço vazio não garante um horário disponível: a validação continua no servidor.
+- Toque no nome do cliente para consultar perfil, visitas, serviços realizados e observações operacionais. Não registre informações clínicas ou sensíveis.
+- **Mais → Relatórios** permite escolher datas e baixar um resumo CSV de serviços concluídos. Esse valor não é receita recebida.
+- A agenda procura alterações a cada 15 segundos enquanto está visível, sem formulário aberto. O aviso informa mudanças; **Atualizar agora** força uma consulta. Não se trata de push instantâneo.
+- **Mais → Conexões** informa se o WhatsApp oficial está configurado. Veja [o guia de conexão](WHATSAPP.md) antes de ativar mensagens automáticas.

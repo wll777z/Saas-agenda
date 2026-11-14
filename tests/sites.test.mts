@@ -71,6 +71,15 @@ function fixture() {
       "utf8",
     ),
   );
+  DB.db.exec(
+    readFileSync(
+      new URL(
+        "../hosted/migrations/0002_customer_communications.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const env = {
     DB,
     MANAGEMENT_SECRET: "only-a-local-test-secret",
@@ -543,4 +552,327 @@ test("Pix payload never invents missing receiver metadata", () => {
       }),
     /titular/,
   );
+});
+
+test("customer history, scoped reports, setup and automatic update contracts", async (t) => {
+  const { env, DB } = fixture();
+  const { tenant, publicBiz: b } = await business(env, "historico");
+  const slots = await freeSlot(env, b);
+  const first = (await request(env, "book", input(b, slots[0]), null)).data;
+  const second = (await request(env, "book", input(b, slots[5]), null)).data;
+  await rpc(env, "set_appointment_status", {
+    p_id: first.id,
+    p_status: "completed",
+  });
+  const customer = DB.db
+    .prepare("SELECT id FROM customers WHERE tenant_id=?")
+    .get(tenant) as any;
+  await t.test(
+    "profile contains authorized full metrics, snapshots and preferred services",
+    async () => {
+      const r = await request(env, "customer?id=" + customer.id);
+      assert.equal(r.status, 200);
+      assert.equal(r.data.stats.appointments, 2);
+      assert.equal(r.data.stats.completed, 1);
+      assert.equal(r.data.stats.service_value, 12000);
+      assert.equal(r.data.preferred[0].visits, 1);
+      assert.equal(r.data.history.length, 2);
+    },
+  );
+  await t.test(
+    "customer notes persist and another tenant cannot read or write them",
+    async () => {
+      assert.equal(
+        (
+          await request(env, "customer", {
+            id: customer.id,
+            notes: "Prefere atendimento pela manhã.",
+          })
+        ).status,
+        200,
+      );
+      assert.equal(
+        (await request(env, "customer?id=" + customer.id)).data.customer.notes,
+        "Prefere atendimento pela manhã.",
+      );
+      assert.notEqual(
+        (await request(env, "customer?id=" + customer.id, undefined, other))
+          .status,
+        200,
+      );
+      assert.notEqual(
+        (
+          await request(
+            env,
+            "customer",
+            { id: customer.id, notes: "Intrusão" },
+            other,
+          )
+        ).status,
+        200,
+      );
+    },
+  );
+  await t.test(
+    "reports aggregate complete selected period and never expose customer contact data",
+    async () => {
+      const day = String(slots[0].starts_at).slice(0, 10);
+      const r = await request(
+        env,
+        `reports?tenant=${tenant}&from=${day}&to=${day}`,
+      );
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.total, 2);
+      assert.equal(r.data.completed, 1);
+      assert.equal(r.data.value, 12000);
+      assert.equal(r.data.services[0].count, 1);
+      assert.equal(
+        JSON.stringify(r.data).includes("test-client@example.test"),
+        false,
+      );
+      assert.notEqual(
+        (
+          await request(
+            env,
+            `reports?tenant=${tenant}&from=${day}&to=${day}`,
+            undefined,
+            other,
+          )
+        ).status,
+        200,
+      );
+    },
+  );
+  await t.test(
+    "appointment queries honor period boundaries instead of truncating old history",
+    async () => {
+      const r = await request(env, "data/query", {
+        table: "appointments",
+        filters: { tenant_id: tenant },
+        range: {
+          from: slots[5].starts_at,
+          to: new Date(Date.parse(slots[5].starts_at) + 3600000).toISOString(),
+        },
+      });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.length, 1);
+      assert.equal(r.data[0].id, second.id);
+    },
+  );
+  await t.test(
+    "updates expose a real revision and operational events without private customer data",
+    async () => {
+      const before = await request(env, "updates?tenant=" + tenant);
+      await request(env, "customer", {
+        id: customer.id,
+        notes: "Novo horário preferido.",
+      });
+      const after = await request(env, "updates?tenant=" + tenant);
+      assert.notEqual(before.data.revision, after.data.revision);
+      assert.equal(after.data.interval_seconds, 15);
+      assert.equal(
+        JSON.stringify(after.data).includes("test-client@example.test"),
+        false,
+      );
+      assert.notEqual(
+        (await request(env, "updates?tenant=" + tenant, undefined, other))
+          .status,
+        200,
+      );
+    },
+  );
+  await t.test(
+    "checklist reflects server configuration and publication status",
+    async () => {
+      const r = await request(env, "setup?tenant=" + tenant);
+      assert.equal(r.status, 200);
+      assert.equal(r.data.steps.length, 3);
+      assert.equal(r.data.steps.filter((x: any) => x.done).length, 3);
+      assert.equal(r.data.public_path, "/a/historico");
+    },
+  );
+  await t.test(
+    "professional history stays limited to their appointments and cannot edit notes or management reports",
+    async () => {
+      DB.db
+        .prepare("INSERT INTO memberships VALUES(?,?,?)")
+        .run(tenant, "limited-pro", "professional");
+      DB.db
+        .prepare("UPDATE professionals SET user_id=? WHERE id=?")
+        .run("limited-pro", b.professionals[0].id);
+      const nextPro = crypto.randomUUID();
+      DB.db
+        .prepare("INSERT INTO professionals(id,tenant_id,name) VALUES(?,?,?)")
+        .run(nextPro, tenant, "Outro profissional");
+      DB.db
+        .prepare("UPDATE appointments SET professional_id=? WHERE id=?")
+        .run(nextPro, second.id);
+      const pro = { id: "limited-pro", email: "pro@example.test" };
+      const profile = await request(
+        env,
+        "customer?id=" + customer.id,
+        undefined,
+        pro,
+      );
+      assert.equal(profile.status, 200);
+      assert.equal(profile.data.history.length, 1);
+      assert.equal(profile.data.stats.appointments, 1);
+      assert.equal(profile.data.can_edit, false);
+      assert.notEqual(
+        (
+          await request(
+            env,
+            "customer",
+            { id: customer.id, notes: "Não permitido" },
+            pro,
+          )
+        ).status,
+        200,
+      );
+      const day = String(slots[0].starts_at).slice(0, 10);
+      assert.notEqual(
+        (
+          await request(
+            env,
+            `reports?tenant=${tenant}&from=${day}&to=${day}`,
+            undefined,
+            pro,
+          )
+        ).status,
+        200,
+      );
+    },
+  );
+  await t.test(
+    "landing HTML exposes actual product copy to crawlers before JavaScript",
+    async () => {
+      const r = await worker.fetch(new Request(base + "/"), env);
+      const html = await r.text();
+      assert.equal(r.status, 200);
+      assert.ok(html.includes('data-ssr="true"'));
+      assert.ok(html.includes("<h1>Seu dia,"));
+      assert.ok(html.includes("AGENDAMENTO ONLINE PARA O SEU NEGÓCIO"));
+      assert.ok(html.includes('href="/agendar"'));
+      const entry = html.match(/src="(\/assets\/agenda-[^"]+\.js)"/);
+      assert.ok(entry);
+      const asset = await worker.fetch(new Request(base + entry![1]), env);
+      assert.equal(asset.status, 200);
+      assert.ok(asset.headers.get("Cache-Control")?.includes("immutable"));
+    },
+  );
+  await t.test(
+    "sitemap includes public businesses and robots exclude private management paths",
+    async () => {
+      const sitemap = await worker.fetch(
+        new Request(base + "/sitemap.xml"),
+        env,
+      );
+      assert.ok((await sitemap.text()).includes("/a/historico"));
+      const robots = await worker.fetch(new Request(base + "/robots.txt"), env);
+      assert.ok((await robots.text()).includes("Disallow: /reserva/"));
+      assert.equal(
+        (await worker.fetch(new Request(base + "/caminho-inexistente"), env))
+          .status,
+        404,
+      );
+    },
+  );
+  DB.db.close();
+});
+test("WhatsApp outbox requires official configuration and opt-in, and stops on revocation", async () => {
+  const { env, DB } = fixture();
+  const { publicBiz: b } = await business(env, "comunicacoes");
+  const slots = await freeSlot(env, b);
+  assert.notEqual(
+    (
+      await request(
+        env,
+        "book",
+        { ...input(b, slots[0]), phone: "11999999999", whatsappOptIn: true },
+        null,
+      )
+    ).status,
+    200,
+  );
+  const configured = {
+    ...env,
+    CRON_SECRET: "fixture-cron",
+    META_WHATSAPP_ACCESS_TOKEN: "fixture-token",
+    META_WHATSAPP_PHONE_NUMBER_ID: "fixture-id",
+    META_WHATSAPP_TEMPLATE_CONFIRMATION: "fixture_confirmation",
+    META_WHATSAPP_TEMPLATE_REMINDER: "fixture_reminder",
+    META_WHATSAPP_TEMPLATE_CANCELLATION: "fixture_cancel",
+  };
+  const r = await request(
+    configured,
+    "book",
+    { ...input(b, slots[0]), phone: "11999999999", whatsappOptIn: true },
+    null,
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const appointment = r.data;
+  assert.equal(
+    DB.db
+      .prepare(
+        "SELECT count(*) n FROM notification_jobs WHERE appointment_id=? AND channel='whatsapp' AND state='pending'",
+      )
+      .get(appointment.id)?.n,
+    2,
+  );
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let payload: any;
+  globalThis.fetch = async (input: any, options: any) => {
+    assert.ok(String(input).startsWith("https://graph.facebook.com/"));
+    calls++;
+    payload = JSON.parse(options.body);
+    return new Response(
+      JSON.stringify({ messages: [{ id: "wamid.fixture" }] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  try {
+    const run = () =>
+      worker.fetch(
+        new Request(base + "/api/jobs", {
+          method: "POST",
+          headers: { Authorization: "Bearer fixture-cron" },
+        }),
+        configured,
+      );
+    assert.equal((await (await run()).json()).sent, 1);
+    assert.equal((await (await run()).json()).sent, 0);
+    assert.equal(calls, 1);
+    assert.equal(payload.type, "template");
+    assert.equal(payload.template.name, "fixture_confirmation");
+    assert.equal(payload.to, "5511999999999");
+    assert.equal(payload.template.components[0].parameters.length, 4);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(
+    (
+      await request(
+        configured,
+        "communication-preference",
+        { token: appointment.token, whatsapp: false },
+        null,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    DB.db
+      .prepare(
+        "SELECT count(*) n FROM notification_jobs WHERE appointment_id=? AND channel='whatsapp' AND state='pending'",
+      )
+      .get(appointment.id)?.n,
+    0,
+  );
+  assert.equal(
+    DB.db.prepare("SELECT whatsapp_opt_in FROM customers LIMIT 1").get()
+      ?.whatsapp_opt_in,
+    0,
+  );
+  DB.db.close();
 });

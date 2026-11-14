@@ -39,11 +39,19 @@ import {
   MoreHorizontal,
   Smartphone,
   Globe,
+  Bell,
+  BarChart3,
+  HelpCircle,
 } from "lucide-react";
 import { supabase, configured, api } from "@/lib/supabase";
 import { money, plans, statusLabel, PIX_KEY } from "@/lib/config";
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import QRCode from "qrcode";
+import CalendarBoard from "./CalendarBoard";
+import CustomerProfile from "./CustomerProfile";
+import Reports from "./Reports";
+import SetupGuide from "./SetupGuide";
+import { calendarPeriod, shiftDay, type CalendarMode } from "@/lib/calendar";
 import LandingV2 from "./Landing";
 import { HostedAuth, Directory } from "./Hosted";
 // Demo lives only in memory and never uses production APIs.
@@ -169,345 +177,6 @@ function Modal({
         {children}
       </section>
     </div>
-  );
-}
-function Preview() {
-  return (
-    <div className="preview">
-      <div className="preview-top">
-        <span className="mini-brand">
-          <CalendarDays size={16} /> agenda clara.
-        </span>
-        <span className="tiny-tag">Sua rotina, mais leve</span>
-      </div>
-      <div className="preview-body">
-        <div className="preview-side">
-          <span className="active">
-            <Sun size={17} /> Hoje
-          </span>
-          <span>
-            <CalendarDays size={17} /> Agenda
-          </span>
-          <span>
-            <Users size={17} /> Clientes
-          </span>
-          <span>
-            <Scissors size={17} /> Serviços
-          </span>
-        </div>
-        <div className="preview-content">
-          <div className="section-top">
-            <div>
-              <small>QUARTA-FEIRA</small>
-              <h3>Um bom dia começa aqui.</h3>
-            </div>
-            <span className="preview-add">+ Novo agendamento</span>
-          </div>
-          <div className="preview-stats">
-            <div>
-              <b>04</b>
-              <span>agendamentos</span>
-            </div>
-            <div>
-              <b>R$ 340</b>
-              <span>serviços previstos</span>
-            </div>
-            <div>
-              <b>02</b>
-              <span>horários livres</span>
-            </div>
-          </div>
-          <div className="preview-week">
-            {["S", "T", "Q", "Q", "S", "S", "D"].map((d, i) => (
-              <span className={i === 2 ? "selected" : ""} key={i}>
-                {d}
-                <b>{12 + i}</b>
-              </span>
-            ))}
-          </div>
-          <div className="preview-appointment">
-            <span>09:00</span>
-            <i />
-            <div>
-              <b>Marina Oliveira</b>
-              <small>Corte e finalização · 60 min</small>
-            </div>
-            <span className="status confirmed">Confirmado</span>
-          </div>
-          <div className="preview-appointment">
-            <span>10:30</span>
-            <i />
-            <div>
-              <b>Camila Santos</b>
-              <small>Design de sobrancelhas · 30 min</small>
-            </div>
-            <span className="status confirmed">Confirmado</span>
-          </div>
-          <div className="preview-free">
-            11:00 <span>Um espaço para o próximo cliente.</span>
-          </div>
-        </div>
-      </div>
-      <div className="preview-footer">
-        <span className="live-dot" /> Demonstração com dados fictícios{" "}
-        <span>Feita para simplificar.</span>
-      </div>
-    </div>
-  );
-}
-function Landing() {
-  return (
-    <>
-      {process.env.NEXT_PUBLIC_PREVIEW_ONLY === "true" && (
-        <div className="site-preview-bar">
-          <span>Prévia navegável da Agenda Clara</span>
-          <a href="/demo">
-            Abrir demonstração do painel <ArrowUpRight size={15} />
-          </a>
-        </div>
-      )}
-      <header className="landing-nav">
-        <Brand />
-        <nav>
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#recursos">Recursos</a>
-          <a href="#planos">Planos</a>
-        </nav>
-        <div className="nav-actions">
-          <a href="/entrar">Entrar</a>
-          <a className="button small" href="/cadastro">
-            Começar agora <ArrowUpRight size={16} />
-          </a>
-        </div>
-      </header>
-      <main>
-        <section className="hero">
-          <div className="eyebrow">
-            <span className="live-dot" /> MENOS GESTÃO. MAIS TEMPO.
-          </div>
-          <h1>
-            Sua agenda organizada.
-            <br />
-            <span>Seu dia mais leve.</span>
-          </h1>
-          <p>
-            Seus clientes com hora marcada. Você com tempo
-            <br className="desktop" /> para fazer o que faz de melhor.
-          </p>
-          <div className="hero-actions">
-            <a className="button" href="/cadastro">
-              Criar minha agenda <ArrowUpRight size={19} />
-            </a>
-            <a className="text-link" href="/demo">
-              Conhecer por dentro <ArrowRight size={18} />
-            </a>
-          </div>
-          <div className="hero-note">
-            <Check size={14} /> 14 dias grátis <span>·</span> Sem cartão de
-            crédito <span>·</span> Pronta no celular
-          </div>
-          <div className="hero-product">
-            <div className="product-label">
-              <span>UM OLHAR PARA SUA NOVA ROTINA</span>
-              <span>01 / AGENDA CLARA</span>
-            </div>
-            <Preview />
-          </div>
-        </section>
-        <section className="benefits" id="recursos">
-          <div className="eyebrow">ESPAÇO NA AGENDA. ESPAÇO NA CABEÇA.</div>
-          <div className="section-heading">
-            <h2>
-              O essencial.
-              <br />
-              <span>Muito bem resolvido.</span>
-            </h2>
-            <p>
-              Uma ferramenta que acompanha seu trabalho,
-              <br />
-              sem deixar sua rotina mais complicada.
-            </p>
-          </div>
-          <div className="benefit-grid">
-            {[
-              {
-                icon: CalendarCheck,
-                title: "Seu link. Sua agenda.",
-                text: "Compartilhe sua página e deixe o cliente escolher o melhor horário, sem criar conta.",
-              },
-              {
-                icon: Smartphone,
-                title: "Tudo na palma da mão.",
-                text: "Organize atendimentos, serviços e disponibilidade de onde você estiver.",
-              },
-              {
-                icon: Clock,
-                title: "Cada horário no seu lugar.",
-                text: "Expediente, intervalos e bloqueios respeitados. Sem duas reservas no mesmo horário.",
-              },
-            ].map(({ icon: I, title, text }, i) => (
-              <article key={title}>
-                <div className="benefit-number">
-                  0{i + 1}
-                  <I size={24} />
-                </div>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section className="how" id="como-funciona">
-          <div>
-            <div className="eyebrow">DO SEU JEITO, EM POUCOS PASSOS</div>
-            <h2>
-              Menos idas e vindas.
-              <br />
-              <span>Mais encontros marcados.</span>
-            </h2>
-            <a className="text-link" href="/cadastro">
-              Vamos organizar seu dia <ArrowUpRight size={18} />
-            </a>
-          </div>
-          <div className="steps">
-            {[
-              [
-                "Crie seu espaço",
-                "Nome do negócio, serviços e horários. Só o necessário para começar.",
-              ],
-              [
-                "Compartilhe seu link",
-                "Na bio, no WhatsApp ou onde seus clientes já encontram você.",
-              ],
-              [
-                "Receba seus agendamentos",
-                "O cliente escolhe. Sua agenda se organiza. Você acompanha tudo.",
-              ],
-            ].map(([t, d], i) => (
-              <div key={t}>
-                <span>0{i + 1}</span>
-                <section>
-                  <h3>{t}</h3>
-                  <p>{d}</p>
-                </section>
-                <Check size={18} />
-              </div>
-            ))}
-          </div>
-        </section>
-        <section id="planos" className="pricing">
-          <div className="eyebrow">SIMPLES ATÉ NA ESCOLHA</div>
-          <h2>Um plano para o seu momento.</h2>
-          <p>Comece com 14 dias do plano Equipe. Sem cobrança automática.</p>
-          <div className="price-grid">
-            {Object.entries(plans).map(([key, p]) => (
-              <article key={key}>
-                <div className="section-top">
-                  <h3>{p.name}</h3>
-                  <span className="tiny-tag">
-                    {key === "solo"
-                      ? "Para quem faz acontecer"
-                      : "Para crescer junto"}
-                  </span>
-                </div>
-                <div className="price">
-                  {money(p.price)}
-                  <small>/mês</small>
-                </div>
-                <p>
-                  {key === "solo"
-                    ? "Seu negócio, com tudo em ordem."
-                    : "Sua equipe, na mesma página."}
-                </p>
-                <ul>
-                  {[
-                    `${p.professionals === 1 ? "1 profissional" : `Até ${p.professionals} profissionais`}`,
-                    `Até ${p.services} serviços ativos`,
-                    `${p.bookings} novos agendamentos por mês`,
-                    "Página de agendamento e painel no celular",
-                  ].map((x) => (
-                    <li key={x}>
-                      <Check size={16} />
-                      {x}
-                    </li>
-                  ))}
-                </ul>
-                <a className="button" href="/cadastro">
-                  Experimentar grátis <ArrowUpRight size={17} />
-                </a>
-              </article>
-            ))}
-          </div>
-          <small>
-            Pix mensal, sem renovação automática. Valores iniciais.
-            Cancelamentos contam no uso; reagendamentos não.
-          </small>
-        </section>
-        <section className="faq">
-          <div>
-            <div className="eyebrow">SEM COMPLICAÇÃO</div>
-            <h2>Ficou alguma dúvida?</h2>
-          </div>
-          <div>
-            {[
-              [
-                "Meu cliente precisa criar uma conta?",
-                "Não. Ele abre seu link, escolhe serviço e horário e informa nome e e-mail para confirmar.",
-              ],
-              [
-                "Consigo usar só pelo celular?",
-                "Sim. Cadastro, agenda, clientes, serviços, equipe e assinatura foram pensados para o celular.",
-              ],
-              [
-                "Como funciona o pagamento por Pix?",
-                "A mensalidade é paga remotamente por QR Code ou copia e cola quando o Mercado Pago estiver conectado. O plano é liberado após a confirmação do provedor. Não há débito recorrente automático.",
-              ],
-              [
-                "O que acontece ao terminar o teste?",
-                "Sem contratação, novas reservas ficam suspensas. Seus compromissos continuam disponíveis para consulta e gerenciamento.",
-              ],
-              [
-                "Envia mensagens no WhatsApp?",
-                "Você pode compartilhar seu link pelo WhatsApp. Isso abre uma conversa; não é envio automático. Confirmações por e-mail dependem do provedor conectado.",
-              ],
-            ].map(([q, a]) => (
-              <details key={q}>
-                <summary>
-                  {q}
-                  <Plus size={18} />
-                </summary>
-                <p>{a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-        <section className="last-cta">
-          <span className="eyebrow">SEU PRÓXIMO CAPÍTULO COMEÇA AQUI</span>
-          <h2>
-            Abra espaço para
-            <br />
-            um dia mais claro.
-          </h2>
-          <a className="button" href="/cadastro">
-            Criar minha agenda <ArrowUpRight size={18} />
-          </a>
-        </section>
-      </main>
-      <footer>
-        <Brand />
-        <p>
-          Mais clareza na rotina.
-          <br />
-          Mais tempo para o que importa.
-        </p>
-        <div>
-          <a href="/termos">Termos de uso</a>
-          <a href="/privacidade">Privacidade</a>
-          <a href="/suporte">Suporte</a>
-        </div>
-        <small>© {new Date().getFullYear()} Agenda Clara</small>
-      </footer>
-    </>
   );
 }
 function Auth({ mode }: { mode: string }) {
@@ -1028,7 +697,16 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
   const [modal, setModal] = useState("");
   const [editing, setEditing] = useState<Row | null>(null);
   const [day, setDay] = useState(today());
-  const [week, setWeek] = useState(false);
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("day");
+  const [bookingPreset, setBookingPreset] = useState<{
+    day: string;
+    time: string;
+  } | null>(null);
+  const [profileTarget, setProfileTarget] = useState<Row | null>(null);
+  const [setup, setSetup] = useState<Row | null>(null);
+  const [activity, setActivity] = useState("");
+  const [syncState, setSyncState] = useState("");
+  const revision = useRef("");
   const [query, setQuery] = useState("");
   const [needsSetup, setNeedsSetup] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1041,85 +719,159 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
   const [logo, setLogo] = useState<string | null>(null);
   const [cover, setCover] = useState<string | null>(null);
   const [accent, setAccent] = useState("#0071e3");
-  const load = useCallback(async () => {
-    if (demo) return;
-    setLoading(true);
-    try {
-      if (!supabase) {
-        setMsg("Conecte o Supabase para habilitar o painel real.");
-        setLoading(false);
-        return;
+  const load = useCallback(
+    async (quiet = false) => {
+      if (demo) return;
+      if (!quiet) setLoading(true);
+      try {
+        if (!supabase) {
+          setMsg("Conecte o Supabase para habilitar o painel real.");
+          setLoading(false);
+          return;
+        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/entrar");
+          return;
+        }
+        const m = await supabase
+          .from("memberships")
+          .select("tenant_id,role,tenants(*)")
+          .eq("user_id", session.user.id);
+        if (m.error) throw m.error;
+        if (!m.data?.length) {
+          setNeedsSetup(true);
+          setLoading(false);
+          return;
+        }
+        const list = m.data.map((x: any) => x.tenants);
+        setTenants(list);
+        const id = tenantId || list[0].id;
+        setTenantId(id);
+        setTenant(list.find((x: any) => x.id === id));
+        setLogo(list.find((x: any) => x.id === id)?.logo_path ?? null);
+        setCover(list.find((x: any) => x.id === id)?.cover_path ?? null);
+        setAccent(list.find((x: any) => x.id === id)?.accent ?? "#0071e3");
+        setRole(m.data.find((x) => x.tenant_id === id)?.role ?? "professional");
+        const queryPeriod = calendarPeriod(day, calendarMode),
+          queryTimezone =
+            list.find((x: any) => x.id === id)?.timezone ?? "America/Sao_Paulo";
+        const rangeStart = fromZonedTime(
+            queryPeriod.start + "T00:00:00",
+            queryTimezone,
+          ).toISOString(),
+          rangeEnd = fromZonedTime(
+            shiftDay(queryPeriod.end, 1) + "T00:00:00",
+            queryTimezone,
+          ).toISOString();
+        const results = await Promise.all([
+          supabase
+            .from("appointments")
+            .select("*,customers(name,email,phone)")
+            .eq("tenant_id", id)
+            .gte("starts_at", rangeStart)
+            .lt("starts_at", rangeEnd)
+            .order("starts_at"),
+          supabase
+            .from("services")
+            .select("*")
+            .eq("tenant_id", id)
+            .order("name"),
+          supabase.from("professionals").select("*").eq("tenant_id", id),
+          supabase
+            .from("customers")
+            .select("*")
+            .eq("tenant_id", id)
+            .order("name"),
+          supabase
+            .from("subscriptions")
+            .select("*")
+            .eq("tenant_id", id)
+            .maybeSingle(),
+          supabase
+            .from("payment_events")
+            .select("*")
+            .eq("tenant_id", id)
+            .order("created_at", { ascending: false }),
+        ]);
+        for (const r of results) if (r.error) throw r.error;
+        setBookings(results[0].data ?? []);
+        setServices(results[1].data ?? []);
+        setProfessionals(results[2].data ?? []);
+        setCustomers(results[3].data ?? []);
+        setSub(results[4].data ?? {});
+        setPayments(results[5].data ?? []);
+        setNeedsSetup(false);
+        if (process.env.NEXT_PUBLIC_SITES_RUNTIME === "true")
+          api("setup?tenant=" + id)
+            .then(setSetup)
+            .catch(() => {});
+        api("health")
+          .then(setHealth)
+          .catch(() => {});
+      } catch (e) {
+        setMsg((e as Error).message);
+      } finally {
+        if (!quiet) setLoading(false);
       }
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/entrar");
-        return;
-      }
-      const m = await supabase
-        .from("memberships")
-        .select("tenant_id,role,tenants(*)")
-        .eq("user_id", session.user.id);
-      if (m.error) throw m.error;
-      if (!m.data?.length) {
-        setNeedsSetup(true);
-        setLoading(false);
-        return;
-      }
-      const list = m.data.map((x: any) => x.tenants);
-      setTenants(list);
-      const id = tenantId || list[0].id;
-      setTenantId(id);
-      setTenant(list.find((x: any) => x.id === id));
-      setLogo(list.find((x: any) => x.id === id)?.logo_path ?? null);
-      setCover(list.find((x: any) => x.id === id)?.cover_path ?? null);
-      setAccent(list.find((x: any) => x.id === id)?.accent ?? "#0071e3");
-      setRole(m.data.find((x) => x.tenant_id === id)?.role ?? "professional");
-      const results = await Promise.all([
-        supabase
-          .from("appointments")
-          .select("*,customers(name,email,phone)")
-          .eq("tenant_id", id)
-          .order("starts_at"),
-        supabase.from("services").select("*").eq("tenant_id", id).order("name"),
-        supabase.from("professionals").select("*").eq("tenant_id", id),
-        supabase
-          .from("customers")
-          .select("*")
-          .eq("tenant_id", id)
-          .order("name"),
-        supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("tenant_id", id)
-          .maybeSingle(),
-        supabase
-          .from("payment_events")
-          .select("*")
-          .eq("tenant_id", id)
-          .order("created_at", { ascending: false }),
-      ]);
-      for (const r of results) if (r.error) throw r.error;
-      setBookings(results[0].data ?? []);
-      setServices(results[1].data ?? []);
-      setProfessionals(results[2].data ?? []);
-      setCustomers(results[3].data ?? []);
-      setSub(results[4].data ?? {});
-      setPayments(results[5].data ?? []);
-      setNeedsSetup(false);
-      api("health")
-        .then(setHealth)
-        .catch(() => {});
-    } catch (e) {
-      setMsg((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [demo, tenantId, router]);
+    },
+    [demo, tenantId, router, day, calendarMode],
+  );
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    revision.current = "";
+  }, [tenantId]);
+  useEffect(() => {
+    if (demo || !tenantId || process.env.NEXT_PUBLIC_SITES_RUNTIME !== "true")
+      return;
+    let active = true,
+      inFlight = false;
+    const poll = async () => {
+      if (!active || inFlight || document.hidden || modal) return;
+      inFlight = true;
+      try {
+        const data = await api("updates?tenant=" + tenantId);
+        if (!active) return;
+        if (revision.current && revision.current !== data.revision) {
+          const labels: Row = {
+            "appointment.created": "Novo agendamento recebido.",
+            "appointment.cancel": "Uma reserva foi cancelada.",
+            "appointment.cancelled": "Uma reserva foi cancelada.",
+            "appointment.reschedule": "Uma reserva foi reagendada.",
+            "appointment.completed": "Um atendimento foi concluído.",
+          };
+          setActivity(
+            labels[data.events?.[0]?.event] ??
+              "A agenda recebeu uma atualização.",
+          );
+          await load(true);
+        }
+        revision.current = data.revision;
+        setSyncState("Atualização automática · a cada 15 segundos");
+      } catch {
+        if (active)
+          setSyncState(
+            "Atualização pausada por falha de conexão. Os dados exibidos foram preservados.",
+          );
+      } finally {
+        inFlight = false;
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 15000);
+    document.addEventListener("visibilitychange", poll);
+    window.addEventListener("online", poll);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+      window.removeEventListener("online", poll);
+    };
+  }, [demo, tenantId, modal, load]);
   async function action(fn: () => Promise<unknown>) {
     setMsg("");
     setBusy(true);
@@ -1139,17 +891,61 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
   const isAdmin = role !== "professional";
   const ownerRole = role === "owner";
   const tz = tenant.timezone ?? "America/Sao_Paulo";
+  const period = calendarPeriod(day, calendarMode);
   const filtered = bookings.filter((b) => {
     const d = formatInTimeZone(new Date(b.starts_at), tz, "yyyy-MM-dd");
-    const end = new Date(day + "T12:00:00");
-    end.setDate(end.getDate() + 6);
     return (
-      (week ? d >= day && d <= end.toISOString().slice(0, 10) : d === day) &&
+      d >= period.start &&
+      d <= period.end &&
       `${b.customers?.name} ${b.service_name}`
         .toLowerCase()
         .includes(query.toLowerCase())
     );
   });
+  function createAt(selectedDay: string, time: string) {
+    setBookingPreset({ day: selectedDay, time });
+    setEditing(null);
+    setModal("booking");
+  }
+  function openCustomer(c: Row) {
+    if (!c?.id) return;
+    setProfileTarget(c);
+    setModal("profile");
+  }
+  function openAppointment(b: Row) {
+    setEditing(b);
+    setModal(
+      b.status === "confirmed" || b.status === "blocked" ? "status" : "details",
+    );
+  }
+  const setupSteps = setup?.steps ?? [
+    {
+      id: "services",
+      title: "Cadastre seu primeiro serviço",
+      done: services.some((s) => s.active),
+    },
+    {
+      id: "availability",
+      title: "Revise dias e horários de atendimento",
+      done: demo,
+    },
+    {
+      id: "share",
+      title: "Publique e compartilhe seu link",
+      done: Boolean(tenant.published),
+    },
+  ];
+  function guideAction(step: string) {
+    if (step === "services") {
+      setView("Serviços");
+      setModal("");
+    } else if (step === "availability") {
+      setSelectedPro(professionals.find((p) => p.active)?.id ?? "");
+      setModal("availability");
+    } else if (tenant.published) {
+      setModal("share");
+    } else setModal("publish");
+  }
   const stats = [
     {
       label: "Agendamentos",
@@ -1186,9 +982,20 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
     },
   ];
   function shift(n: number) {
-    const d = new Date(day + "T12:00:00");
-    d.setDate(d.getDate() + n);
-    setDay(d.toISOString().slice(0, 10));
+    if (calendarMode === "month") {
+      const d = new Date(day + "T12:00:00Z");
+      setDay(
+        new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1, 12))
+          .toISOString()
+          .slice(0, 10),
+      );
+    } else
+      setDay(
+        shiftDay(
+          day,
+          n * (calendarMode === "week" ? 7 : calendarMode === "list" ? 30 : 1),
+        ),
+      );
   }
   async function copy(text: string) {
     try {
@@ -1381,6 +1188,15 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
           </span>
           <div>
             <span className="tz-label">{tz}</span>
+            {isAdmin && (
+              <button
+                className="icon-btn"
+                onClick={() => setModal("guide")}
+                aria-label="Abrir guia dos primeiros passos"
+              >
+                <HelpCircle size={19} />
+              </button>
+            )}
             <button
               className="icon-btn"
               onClick={() => setView("Mais")}
@@ -1406,7 +1222,22 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
             </div>
           )}
           {msg && <Notice>{msg}</Notice>}
-          {!demo && !tenant.published && isAdmin && (
+          {activity && (
+            <div className="activity-notice" role="status">
+              <Bell size={18} />
+              <span>{activity}</span>
+              <button
+                onClick={() => setActivity("")}
+                aria-label="Fechar atualização"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {isAdmin && !tenant.published && (
+            <SetupGuide steps={setupSteps} onAction={guideAction} />
+          )}
+          {!demo && !tenant.published && ownerRole && (
             <div className="publish-banner">
               <div>
                 <b>Falta pouco para abrir sua agenda.</b>
@@ -1460,6 +1291,8 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                       Serviços: "O que você faz de melhor.",
                       Mais: "Os detalhes que deixam sua rotina mais simples.",
                       Pix: "Pague remotamente e acompanhe seu plano.",
+                      Relatórios:
+                        "Acompanhe os serviços realizados e os resultados da agenda.",
                     } as Row
                   )[view]
                 }
@@ -1468,6 +1301,7 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
             {isAdmin && (view === "Hoje" || view === "Agenda") && (
               <Button
                 onClick={() => {
+                  setBookingPreset(null);
                   setEditing(null);
                   setModal("booking");
                 }}
@@ -1504,7 +1338,14 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                   </article>
                 ))}
               </div>
-              <div className="agenda-layout">
+              <div
+                className={
+                  "agenda-layout " +
+                  (calendarMode === "week" || calendarMode === "month"
+                    ? "calendar-expanded"
+                    : "")
+                }
+              >
                 <section className="agenda-panel">
                   <div className="agenda-toolbar">
                     <div>
@@ -1532,19 +1373,28 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                         Hoje
                       </button>
                     </div>
-                    <div className="segmented">
-                      <button
-                        className={!week ? "selected" : ""}
-                        onClick={() => setWeek(false)}
-                      >
-                        Dia
-                      </button>
-                      <button
-                        className={week ? "selected" : ""}
-                        onClick={() => setWeek(true)}
-                      >
-                        Semana
-                      </button>
+                    <div
+                      className="segmented"
+                      role="group"
+                      aria-label="Visualização da agenda"
+                    >
+                      {(
+                        [
+                          { id: "day", label: "Dia" },
+                          { id: "week", label: "Semana" },
+                          { id: "month", label: "Mês" },
+                          { id: "list", label: "Lista" },
+                        ] as const
+                      ).map((mode) => (
+                        <button
+                          key={mode.id}
+                          aria-pressed={calendarMode === mode.id}
+                          className={calendarMode === mode.id ? "selected" : ""}
+                          onClick={() => setCalendarMode(mode.id)}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <div className="agenda-search">
@@ -1557,59 +1407,112 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                     />
                     <small>{filtered.length} compromissos</small>
                   </div>
-                  <div className="appointment-list">
-                    {filtered.length === 0 ? (
-                      <div className="empty">
-                        <CalendarDays size={30} />
-                        <h3>Espaço para um novo encontro.</h3>
-                        <p>Nenhum compromisso neste período.</p>
-                      </div>
-                    ) : (
-                      filtered.map((b) => (
-                        <div className="appointment-row" key={b.id}>
-                          <div className="appointment-time">
-                            <b>{timeLabel(b.starts_at, tz)}</b>
-                            <small>
-                              {week
-                                ? dateLabel(b.starts_at, tz)
-                                : `${b.duration} min`}
-                            </small>
-                          </div>
-                          <div className={"appointment-line " + b.status} />
-                          <div className="appointment-info">
-                            <b>{b.customers?.name ?? "Horário bloqueado"}</b>
-                            <span>{b.service_name}</span>
-                            <small>
-                              {
-                                professionals.find(
-                                  (p) => p.id === b.professional_id,
-                                )?.name
-                              }
-                            </small>
-                          </div>
-                          <div className="appointment-right">
-                            <span className={"status " + b.status}>
-                              {statusLabel[b.status]}
-                            </span>
-                            <span>{money(b.price)}</span>
-                          </div>
-                          {(b.status === "confirmed" ||
-                            (b.status === "blocked" && isAdmin)) && (
-                            <button
-                              className="icon-btn"
-                              aria-label={
-                                "Gerenciar reserva de " + b.customers?.name
-                              }
-                              onClick={() => {
-                                setEditing(b);
-                                setModal("status");
-                              }}
-                            >
-                              <MoreHorizontal size={20} />
-                            </button>
-                          )}
+                  {calendarMode === "week" || calendarMode === "month" ? (
+                    <CalendarBoard
+                      mode={calendarMode}
+                      day={day}
+                      bookings={filtered}
+                      timezone={tz}
+                      canCreate={isAdmin}
+                      onDay={(d) => {
+                        setDay(d);
+                        setCalendarMode("day");
+                      }}
+                      onCreate={createAt}
+                      onAppointment={openAppointment}
+                    />
+                  ) : (
+                    <div className="appointment-list">
+                      {filtered.length === 0 ? (
+                        <div className="empty">
+                          <CalendarDays size={30} />
+                          <h3>Espaço para um novo encontro.</h3>
+                          <p>Nenhum compromisso neste período.</p>
                         </div>
-                      ))
+                      ) : (
+                        filtered.map((b) => (
+                          <div className="appointment-row" key={b.id}>
+                            <div className="appointment-time">
+                              <b>{timeLabel(b.starts_at, tz)}</b>
+                              <small>
+                                {calendarMode === "list"
+                                  ? dateLabel(b.starts_at, tz)
+                                  : `${b.duration} min`}
+                              </small>
+                            </div>
+                            <div className={"appointment-line " + b.status} />
+                            <div className="appointment-info">
+                              {b.customers ? (
+                                <button
+                                  className="customer-name-link"
+                                  onClick={() =>
+                                    openCustomer({
+                                      ...b.customers,
+                                      id:
+                                        b.customer_id ??
+                                        customers.find(
+                                          (c) => c.email === b.customers.email,
+                                        )?.id,
+                                    })
+                                  }
+                                >
+                                  {b.customers.name}
+                                </button>
+                              ) : (
+                                <b>Horário bloqueado</b>
+                              )}
+                              <span>{b.service_name}</span>
+                              <small>
+                                {
+                                  professionals.find(
+                                    (p) => p.id === b.professional_id,
+                                  )?.name
+                                }
+                              </small>
+                            </div>
+                            <div className="appointment-right">
+                              <span className={"status " + b.status}>
+                                {statusLabel[b.status]}
+                              </span>
+                              <span>{money(b.price)}</span>
+                            </div>
+                            {(b.status === "confirmed" ||
+                              (b.status === "blocked" && isAdmin)) && (
+                              <button
+                                className="icon-btn"
+                                aria-label={
+                                  "Gerenciar reserva de " + b.customers?.name
+                                }
+                                onClick={() => {
+                                  setEditing(b);
+                                  setModal("status");
+                                }}
+                              >
+                                <MoreHorizontal size={20} />
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                      {isAdmin && (
+                        <button
+                          className="daily-quick-add"
+                          onClick={() => createAt(day, "09:00")}
+                        >
+                          <Plus size={17} /> Agendar neste dia
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="sync-caption">
+                    <span className="live-dot" />
+                    {demo
+                      ? "Demonstração em memória"
+                      : syncState || "Carregando atualização automática…"}
+                    {!demo && (
+                      <button onClick={() => load(true)}>
+                        Atualizar agora
+                      </button>
                     )}
                   </div>
                   <div className="agenda-bottom">
@@ -1702,11 +1605,21 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                   <div className="customer-row" key={c.id}>
                     <span className="avatar">{c.name[0]}</span>
                     <div>
-                      <b>{c.name}</b>
+                      <button
+                        className="customer-name-link"
+                        onClick={() => openCustomer(c)}
+                      >
+                        {c.name}
+                      </button>
                       <span>{c.email}</span>
                       <small>{c.phone}</small>
                     </div>
-                    <span className="tiny-tag">Cliente</span>
+                    <button
+                      className="profile-open"
+                      onClick={() => openCustomer(c)}
+                    >
+                      Ver histórico <ArrowUpRight size={15} />
+                    </button>
                   </div>
                 ))}
               {!customers.length && (
@@ -1717,6 +1630,14 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
                 </div>
               )}
             </section>
+          )}
+          {view === "Relatórios" && (
+            <Reports
+              bookings={bookings}
+              timezone={tz}
+              tenantId={tenantId}
+              demo={demo}
+            />
           )}
           {view === "Serviços" && (
             <div className="service-grid">
@@ -1773,6 +1694,18 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
               )}
               <div className="settings-grid">
                 {[
+                  {
+                    icon: BarChart3,
+                    title: "Relatórios",
+                    text: "Serviços realizados, cancelamentos e resumo CSV.",
+                    key: "reports",
+                  },
+                  {
+                    icon: HelpCircle,
+                    title: "Primeiros passos",
+                    text: "Um guia curto para preparar sua agenda.",
+                    key: "guide",
+                  },
                   {
                     icon: Clock,
                     title: "Disponibilidade",
@@ -2135,6 +2068,94 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
           ))}
         </nav>
       </div>
+      {modal === "guide" && (
+        <Modal
+          title="Sua agenda em três passos"
+          message={msg}
+          onClose={() => setModal("")}
+        >
+          <SetupGuide steps={setupSteps} onAction={guideAction} compact />
+          <p className="muted small-text">
+            Os passos usam a configuração do seu negócio. Revise os horários e
+            publique o link antes de compartilhar com clientes.
+          </p>
+        </Modal>
+      )}
+      {modal === "publish" && (
+        <Modal
+          title="Publique seu link de agendamento"
+          message={msg}
+          onClose={() => setModal("")}
+        >
+          <p>
+            Revise o serviço e os intervalos de atendimento. A publicação será
+            validada no servidor.
+          </p>
+          <Button
+            disabled={!ownerRole || busy || demo}
+            onClick={() =>
+              action(async () => {
+                await call("publish_business", {
+                  p_tenant: tenantId,
+                  p_published: true,
+                });
+                setModal("share");
+              })
+            }
+          >
+            Publicar agenda <ArrowUpRight size={17} />
+          </Button>
+          {!ownerRole && <p>O proprietário precisa confirmar a publicação.</p>}
+          {demo && (
+            <p className="notice">
+              Crie uma conta para publicar uma agenda real.
+            </p>
+          )}
+        </Modal>
+      )}
+      {modal === "profile" && profileTarget && (
+        <Modal
+          title="Perfil e histórico do cliente"
+          onClose={() => setModal("")}
+        >
+          <CustomerProfile
+            id={profileTarget.id}
+            customer={profileTarget}
+            timezone={tz}
+            demo={demo}
+            bookings={bookings}
+          />
+        </Modal>
+      )}
+      {modal === "details" && editing && (
+        <Modal title="Detalhes do atendimento" onClose={() => setModal("")}>
+          <h3>{editing.customers?.name ?? "Horário bloqueado"}</h3>
+          <p>{editing.service_name}</p>
+          <p>
+            {dateLabel(editing.starts_at, tz)} às{" "}
+            {timeLabel(editing.starts_at, tz)} · {editing.duration} min ·{" "}
+            {money(editing.price)}
+          </p>
+          <span className={"status " + editing.status}>
+            {statusLabel[editing.status]}
+          </span>
+          {editing.customers && (
+            <Button
+              onClick={() =>
+                openCustomer({
+                  ...editing.customers,
+                  id:
+                    editing.customer_id ??
+                    customers.find((c) => c.email === editing.customers.email)
+                      ?.id,
+                })
+              }
+            >
+              Ver histórico do cliente <Users size={17} />
+            </Button>
+          )}
+        </Modal>
+      )}
       {modal === "service" && (
         <Modal
           message={msg}
@@ -2220,11 +2241,21 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
           <Booking
             slug={tenant.slug}
             manual
+            initialDay={bookingPreset?.day}
+            initialTime={bookingPreset?.time}
             demo={demo}
             demoServices={services}
             demoProfessionals={professionals}
             onDemo={(b) => {
-              setBookings((x) => [...x, b]);
+              const customerId =
+                customers.find((c) => c.email === b.customers?.email)?.id ??
+                crypto.randomUUID();
+              setBookings((x) => [...x, { ...b, customer_id: customerId }]);
+              setCustomers((current) =>
+                current.some((c) => c.id === customerId)
+                  ? current
+                  : [...current, { id: customerId, ...b.customers }],
+              );
               setModal("");
             }}
             onBooked={() => {
@@ -2774,6 +2805,7 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
             ["Banco e autenticação", health.database],
             ["Pix · Mercado Pago", health.pix],
             ["Confirmações e lembretes · e-mail", health.email],
+            ["WhatsApp oficial · modelos aprovados", health.whatsapp],
           ].map(([label, on]) => (
             <div className="connection-row" key={String(label)}>
               <b>{label}</b>
@@ -2782,6 +2814,28 @@ function Dashboard({ demo = false }: { demo?: boolean }) {
               </span>
             </div>
           ))}
+          <details className="integration-help">
+            <summary>Como conectar o WhatsApp oficial</summary>
+            <p>
+              Use uma conta WhatsApp Business na Meta, um número remetente
+              habilitado e modelos de confirmação, lembrete e cancelamento
+              aprovados em português. O cliente precisa autorizar o envio na
+              reserva.
+            </p>
+            <p>
+              Configure o token e os identificadores nas variáveis seguras da
+              hospedagem. Depois agende a execução da fila. O guia do
+              repositório descreve os nomes das variáveis e os quatro campos dos
+              modelos.
+            </p>
+            <a
+              href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir documentação oficial da Meta
+            </a>
+          </details>
           <p className="muted">
             Configure segredos somente nas variáveis do servidor. As instruções
             estão no repositório. Mensagens pendentes ficam na fila até a
@@ -2833,6 +2887,8 @@ function Booking({
   demoProfessionals: dp = [],
   onDemo,
   onBooked,
+  initialDay,
+  initialTime,
 }: {
   slug: string;
   manual?: boolean;
@@ -2841,6 +2897,8 @@ function Booking({
   demoProfessionals?: Row[];
   onDemo?: (b: Row) => void;
   onBooked?: () => void;
+  initialDay?: string;
+  initialTime?: string;
 }) {
   const [biz, setBiz] = useState<Row | null>(
     demo
@@ -2853,13 +2911,14 @@ function Booking({
   );
   const [service, setService] = useState("");
   const [pro, setPro] = useState("");
-  const [day, setDay] = useState(today());
+  const [day, setDay] = useState(initialDay ?? today());
   const [slots, setSlots] = useState<Row[]>([]);
   const [slot, setSlot] = useState<Row | null>(null);
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -2900,12 +2959,20 @@ function Booking({
     setLoadingSlots(true);
     setMsg("");
     if (demo) {
-      setSlots(
-        ["09:00", "10:30", "13:00", "14:30", "16:00"].map((t) => ({
+      const demoSlots = ["09:00", "10:30", "13:00", "14:30", "16:00"].map(
+        (t) => ({
           starts_at: fromZonedTime(day + "T" + t, tz).toISOString(),
           professional_id: pro || dp[0]?.id,
-        })),
+        }),
       );
+      setSlots(demoSlots);
+      if (initialTime) {
+        const desired = demoSlots.find(
+          (slot) =>
+            formatInTimeZone(slot.starts_at, tz, "HH:mm") === initialTime,
+        );
+        if (desired) setSlot(desired);
+      }
       setLoadingSlots(false);
       return;
     }
@@ -2913,7 +2980,17 @@ function Booking({
       `slots?slug=${encodeURIComponent(slug)}&service=${service}&day=${day}${pro ? "&professional=" + pro : ""}${manual ? "&manual=1" : ""}`,
     )
       .then((x) => {
-        if (current) setSlots(x);
+        if (current) {
+          setSlots(x);
+          if (initialTime) {
+            const desired = x.find(
+              (candidate: Row) =>
+                formatInTimeZone(new Date(candidate.starts_at), tz, "HH:mm") ===
+                initialTime,
+            );
+            if (desired) setSlot(desired);
+          }
+        }
       })
       .catch((e) => {
         if (current) setMsg(e.message);
@@ -2924,7 +3001,7 @@ function Booking({
     return () => {
       current = false;
     };
-  }, [service, pro, day, demo, slug, tz]);
+  }, [service, pro, day, demo, slug, tz, initialTime]);
   async function confirm() {
     if (!s || !slot) return;
     setBusy(true);
@@ -2956,6 +3033,7 @@ function Booking({
         phone,
         key,
         manual,
+        whatsappOptIn,
       });
       setSuccess(result);
       onBooked?.();
@@ -2987,8 +3065,7 @@ function Booking({
         </p>
         <p className="muted">
           Protocolo: {success.id.slice(0, 8).toUpperCase()}. Guarde o link
-          abaixo. Guarde este link. Confirmações por e-mail dependem do
-          remetente conectado.
+          abaixo. Confirmações por e-mail dependem do remetente conectado.
         </p>
         <a className="button" href={"/reserva/" + success.token}>
           Gerenciar minha reserva <ArrowRight size={17} />
@@ -3172,15 +3249,34 @@ function Booking({
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
-          <Field label="Telefone (opcional)">
+          <Field
+            label={
+              whatsappOptIn ? "WhatsApp com DDD e país" : "Telefone (opcional)"
+            }
+          >
             <input
               type="tel"
+              required={whatsappOptIn}
               autoComplete="tel"
               maxLength={30}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
           </Field>
+          {biz.whatsapp_enabled && (
+            <label className="checkbox whatsapp-consent">
+              <input
+                type="checkbox"
+                checked={whatsappOptIn}
+                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+              />
+              <span>
+                Quero receber confirmação e lembrete deste atendimento no
+                WhatsApp. Posso desativar pelo link da reserva. Sem mensagens de
+                marketing.
+              </span>
+            </label>
+          )}
           <p className="muted small-text">
             Usaremos seus dados para organizar este atendimento. Nenhuma
             inscrição em marketing.{" "}
@@ -3383,6 +3479,24 @@ function Manage({ token }: { token: string }) {
                   Alterações até {b.cancel_hours} horas antes do atendimento. O
                   estabelecimento pode ajudar após esse prazo.
                 </p>
+                <button
+                  className="text-link"
+                  onClick={async () => {
+                    try {
+                      await api("communication-preference", {
+                        token,
+                        whatsapp: false,
+                      });
+                      setMsg(
+                        "Mensagens automáticas de WhatsApp desativadas para este cliente.",
+                      );
+                    } catch (error) {
+                      setMsg((error as Error).message);
+                    }
+                  }}
+                >
+                  Desativar mensagens de WhatsApp
+                </button>
               </>
             )}
             {mode === "cancel" && (
@@ -3570,9 +3684,11 @@ function Legal({ page }: { page: string }) {
                 ? "Esta publicação utiliza banco D1 e armazenamento Cloudflare, com login administrativo gerenciado pelo ChatGPT."
                 : "A implantação alternativa utiliza Supabase para banco e autenticação."}{" "}
               Mercado Pago pode ser conectado para confirmar mensalidades
-              automaticamente; Resend é usado para e-mail quando configurado. No
-              Pix direto, o responsável confere o extrato bancário antes de
-              liberar o plano.
+              automaticamente; Resend é usado para e-mail quando configurado. A
+              API oficial do WhatsApp da Meta pode enviar comunicações
+              operacionais quando configurada e autorizada pelo cliente. No Pix
+              direto, o responsável confere o extrato bancário antes de liberar
+              o plano.
             </p>
             <h2>Seus direitos</h2>
             <p>

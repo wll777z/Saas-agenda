@@ -103,3 +103,7 @@ As variáveis públicas `NEXT_PUBLIC_OPERATOR_NAME`, `NEXT_PUBLIC_OPERATOR_DOCUM
 ## Prévia navegável no ChatGPT
 
 `npm run build:preview` usa o mesmo frontend React para construir uma prévia estática em `dist/`, com página comercial e painel fictício em `/demo`. Nessa publicação, banco, autenticação, reservas reais e pagamentos ficam desabilitados explicitamente. A aplicação Next.js completa continua sendo construída por `npm run build`. O manifesto `.openai/hosting.json` agora identifica o Worker com backend D1; use `npm run build:sites` para republicar o endereço funcional.
+
+## Avaliação e melhorias mais recentes
+
+Veja [a comparação com o texto enviado e a avaliação do produto](docs/AVALIACAO-DO-SITE.md). A publicação atual inclui agenda mensal/semanal/lista, checklist, perfil de cliente, relatórios agregados no servidor, atualização a cada 15 segundos, HTML inicial para buscadores e adaptador WhatsApp oficial condicionado à configuração. [Guia WhatsApp](docs/WHATSAPP.md).

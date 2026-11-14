@@ -2,7 +2,9 @@ import { z } from "zod";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { plans, PIX_KEY } from "../src/lib/config";
 import { pixPayload } from "./pix";
-import { assets, html } from "virtual:agenda-assets";
+import { featureHandlers } from "./features";
+import { whatsappReady, normalizePhone, sendWhatsApp } from "./whatsapp";
+import { assets, html, appHtml } from "virtual:agenda-assets";
 type DB = any;
 type Row = Record<string, any>;
 type Env = {
@@ -17,6 +19,12 @@ type Env = {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   CRON_SECRET?: string;
+  META_WHATSAPP_ACCESS_TOKEN?: string;
+  META_WHATSAPP_PHONE_NUMBER_ID?: string;
+  META_WHATSAPP_TEMPLATE_CONFIRMATION?: string;
+  META_WHATSAPP_TEMPLATE_REMINDER?: string;
+  META_WHATSAPP_TEMPLATE_CANCELLATION?: string;
+  META_WHATSAPP_API_VERSION?: string;
 };
 const id = () => crypto.randomUUID();
 const iso = () => new Date().toISOString();
@@ -285,6 +293,7 @@ function queue(
   email: string,
   start: string,
   kind = "confirmation",
+  whatsapp?: { phone: string; optIn: boolean },
 ) {
   const time = iso();
   const list = [
@@ -314,6 +323,35 @@ function queue(
         time,
       ),
     );
+  if (whatsapp?.optIn && whatsapp.phone) {
+    list.push(
+      stmt(
+        db,
+        "INSERT INTO notification_jobs(id,tenant_id,appointment_id,kind,recipient,available_at,created_at,channel) VALUES(?,?,?,?,?,?,?,'whatsapp')",
+        id(),
+        t,
+        b,
+        kind,
+        normalizePhone(whatsapp.phone),
+        time,
+        time,
+      ),
+    );
+    if (kind === "confirmation" && Date.parse(start) > Date.now() + 86400000)
+      list.push(
+        stmt(
+          db,
+          "INSERT INTO notification_jobs(id,tenant_id,appointment_id,kind,recipient,available_at,created_at,channel) VALUES(?,?,?,?,?,?,?,'whatsapp')",
+          id(),
+          t,
+          b,
+          "reminder",
+          normalizePhone(whatsapp.phone),
+          new Date(Date.parse(start) - 86400000).toISOString(),
+          time,
+        ),
+      );
+  }
   return list;
 }
 async function reserve(req: Request, env: Env, body: unknown) {
@@ -328,6 +366,7 @@ async function reserve(req: Request, env: Env, body: unknown) {
       phone: z.string().max(30).default(""),
       key: uuid,
       manual: z.boolean().default(false),
+      whatsappOptIn: z.boolean().default(false),
     })
     .parse(body);
   const db = env.DB,
@@ -335,6 +374,13 @@ async function reserve(req: Request, env: Env, body: unknown) {
   if (!t || (!b.manual && !t.published)) throw Error("Agenda indisponível");
   let actor: string | null = null;
   if (b.manual) actor = (await member(db, req, t.id, ["owner", "admin"])).id;
+  if (b.whatsappOptIn) {
+    if (!whatsappReady(env))
+      throw Error(
+        "WhatsApp oficial ainda não conectado. Você pode confirmar a reserva sem essa opção.",
+      );
+    normalizePhone(b.phone);
+  }
   const token = await hmac(t.slug + ":" + b.key, env.MANAGEMENT_SECRET),
     manageHash = await digest(token);
   const prior = await one(
@@ -394,12 +440,13 @@ async function reserve(req: Request, env: Env, body: unknown) {
   const statements = [
     stmt(
       db,
-      "INSERT INTO customers(id,tenant_id,name,email,phone) VALUES(?,?,?,?,?) ON CONFLICT(tenant_id,email) DO UPDATE SET name=excluded.name,phone=excluded.phone",
+      "INSERT INTO customers(id,tenant_id,name,email,phone,whatsapp_opt_in) VALUES(?,?,?,?,?,?) ON CONFLICT(tenant_id,email) DO UPDATE SET name=excluded.name,phone=excluded.phone,whatsapp_opt_in=excluded.whatsapp_opt_in",
       customer,
       t.id,
       b.name,
       b.email.toLowerCase(),
       b.phone,
+      b.whatsappOptIn,
     ),
     stmt(
       db,
@@ -421,7 +468,15 @@ async function reserve(req: Request, env: Env, body: unknown) {
       b.key,
       time,
     ),
-    ...queue(db, t.id, appointment, b.email.toLowerCase(), start),
+    ...queue(
+      db,
+      t.id,
+      appointment,
+      b.email.toLowerCase(),
+      start,
+      "confirmation",
+      { phone: b.phone, optIn: b.whatsappOptIn },
+    ),
     audit(db, t.id, actor, "appointment.created", appointment),
   ];
   try {
@@ -448,6 +503,7 @@ async function reserve(req: Request, env: Env, body: unknown) {
     status: "confirmed",
     token,
     emailConfigured: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
+    whatsappConfigured: whatsappReady(env),
   };
 }
 async function manage(req: Request, env: Env, body: Row, read = false) {
@@ -504,7 +560,7 @@ async function changeBooking(
   const db = env.DB;
   const c = await one(
     db,
-    "SELECT email FROM customers WHERE id=?",
+    "SELECT email,phone,whatsapp_opt_in FROM customers WHERE id=?",
     b.customer_id,
   );
   const queries = [
@@ -523,7 +579,10 @@ async function changeBooking(
       ),
     );
     queries.push(
-      ...queue(db, b.tenant_id, b.id, c.email, b.starts_at, "cancellation"),
+      ...queue(db, b.tenant_id, b.id, c.email, b.starts_at, "cancellation", {
+        phone: c.phone,
+        optIn: Boolean(c.whatsapp_opt_in) && whatsappReady(env),
+      }),
     );
   } else {
     const t = await one(db, "SELECT * FROM tenants WHERE id=?", b.tenant_id);
@@ -559,7 +618,12 @@ async function changeBooking(
         b.id,
       ),
     );
-    queries.push(...queue(db, b.tenant_id, b.id, c.email, next));
+    queries.push(
+      ...queue(db, b.tenant_id, b.id, c.email, next, "confirmation", {
+        phone: c.phone,
+        optIn: Boolean(c.whatsapp_opt_in) && whatsappReady(env),
+      }),
+    );
   }
   queries.push(audit(db, b.tenant_id, actor, "appointment." + action, b.id));
   await db.batch(queries);
@@ -621,6 +685,14 @@ async function query(req: Request, env: Env, input: Row) {
   if (f.professional_id) {
     sql += " AND professional_id=?";
     args.push(uuid.parse(f.professional_id));
+  }
+  if (table === "appointments" && input.range?.from) {
+    sql += " AND starts_at>=?";
+    args.push(new Date(date.parse(input.range.from)).toISOString());
+  }
+  if (table === "appointments" && input.range?.to) {
+    sql += " AND starts_at<?";
+    args.push(new Date(date.parse(input.range.to)).toISOString());
   }
   const sort = input.sorting?.key;
   if (sort && ["name", "created_at", "starts_at", "weekday"].includes(sort))
@@ -1269,17 +1341,23 @@ async function jobs(req: Request, env: Env) {
     throw Error("Acesso negado");
   const db = env.DB;
   let sent = 0;
-  if (env.RESEND_API_KEY && env.EMAIL_FROM) {
+  const channels = [
+    ...(env.RESEND_API_KEY && env.EMAIL_FROM ? ["email"] : []),
+    ...(whatsappReady(env) ? ["whatsapp"] : []),
+  ];
+  if (channels.length) {
+    const placeholders = channels.map(() => "?").join(",");
     const candidates = await rows(
       db,
-      "SELECT id FROM notification_jobs WHERE (state='pending' AND available_at<=?) OR (state='sending' AND locked_until<? AND attempts<5) ORDER BY available_at LIMIT 20",
+      `SELECT id FROM notification_jobs WHERE channel IN (${placeholders}) AND attempts<5 AND ((state='pending' AND available_at<=?) OR (state='sending' AND locked_until<?)) ORDER BY available_at LIMIT 20`,
+      ...channels,
       iso(),
       iso(),
     );
     for (const item of candidates) {
       const job = await one(
         db,
-        "UPDATE notification_jobs SET state='sending',attempts=attempts+1,locked_until=? WHERE id=? AND ((state='pending' AND available_at<=?) OR(state='sending' AND locked_until<?)) RETURNING *",
+        "UPDATE notification_jobs SET state='sending',attempts=attempts+1,locked_until=? WHERE id=? AND attempts<5 AND ((state='pending' AND available_at<=?) OR(state='sending' AND locked_until<?)) RETURNING *",
         new Date(Date.now() + 300000).toISOString(),
         item.id,
         iso(),
@@ -1288,10 +1366,14 @@ async function jobs(req: Request, env: Env) {
       if (!job) continue;
       const b = await one(
         db,
-        "SELECT a.*,t.name business,t.slug,t.timezone FROM appointments a JOIN tenants t ON t.id=a.tenant_id WHERE a.id=?",
+        "SELECT a.*,t.name business,t.slug,t.timezone,c.whatsapp_opt_in,c.phone FROM appointments a JOIN tenants t ON t.id=a.tenant_id LEFT JOIN customers c ON c.id=a.customer_id WHERE a.id=?",
         job.appointment_id,
       );
-      if (!b || (job.kind !== "cancellation" && b.status !== "confirmed")) {
+      if (
+        !b ||
+        (job.kind !== "cancellation" && b.status !== "confirmed") ||
+        (job.channel === "whatsapp" && !b.whatsapp_opt_in)
+      ) {
         await stmt(
           db,
           "UPDATE notification_jobs SET state='cancelled' WHERE id=?",
@@ -1303,6 +1385,7 @@ async function jobs(req: Request, env: Env) {
         b.slug + ":" + b.idempotency_key,
         env.MANAGEMENT_SECRET,
       );
+      const manageUrl = new URL("/reserva/" + token, req.url).href;
       const label = formatInTimeZone(
         b.starts_at,
         b.timezone,
@@ -1311,36 +1394,44 @@ async function jobs(req: Request, env: Env) {
       const text =
         job.kind === "cancellation"
           ? `Sua reserva de ${b.service_name} em ${b.business} foi cancelada.`
-          : `${job.kind === "reminder" ? "Lembrete" : "Agendamento confirmado"}: ${b.service_name} em ${b.business}, ${label} (${b.timezone}). Gerencie sua reserva: ${new URL("/reserva/" + token, req.url).href}`;
+          : `${job.kind === "reminder" ? "Lembrete" : "Agendamento confirmado"}: ${b.service_name} em ${b.business}, ${label} (${b.timezone}). Gerencie sua reserva: ${manageUrl}`;
       try {
         const current = await one(
           db,
           "SELECT state FROM notification_jobs WHERE id=?",
           job.id,
         );
-        if (current.state !== "sending") continue;
-        const r = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: "Bearer " + env.RESEND_API_KEY,
-            "Content-Type": "application/json",
-            "Idempotency-Key": job.id,
-          },
-          body: JSON.stringify({
-            from: env.EMAIL_FROM,
-            to: [job.recipient],
-            subject:
-              job.kind === "cancellation"
-                ? "Reserva cancelada — Agenda Clara"
-                : "Seu agendamento — Agenda Clara",
-            text,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!r.ok) throw Error("Falha no envio");
+        if (current?.state !== "sending") continue;
+        let providerId: string | null = null;
+        if (job.channel === "whatsapp")
+          providerId = await sendWhatsApp(env, job, b, manageUrl);
+        else {
+          const response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + env.RESEND_API_KEY,
+              "Content-Type": "application/json",
+              "Idempotency-Key": job.id,
+            },
+            body: JSON.stringify({
+              from: env.EMAIL_FROM,
+              to: [job.recipient],
+              subject:
+                job.kind === "cancellation"
+                  ? "Reserva cancelada — Agenda Clara"
+                  : "Seu agendamento — Agenda Clara",
+              text,
+            }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!response.ok) throw Error("Falha no envio");
+          const result = (await response.json()) as Row;
+          providerId = result.id ?? null;
+        }
         await stmt(
           db,
-          "UPDATE notification_jobs SET state='sent',locked_until=NULL WHERE id=?",
+          "UPDATE notification_jobs SET state='sent',locked_until=NULL,provider_message_id=? WHERE id=?",
+          providerId,
           job.id,
         ).run();
         sent++;
@@ -1348,7 +1439,9 @@ async function jobs(req: Request, env: Env) {
         await stmt(
           db,
           "UPDATE notification_jobs SET state=?,locked_until=NULL,available_at=? WHERE id=?",
-          job.attempts >= 5 ? "failed" : "pending",
+          job.channel === "whatsapp" || job.attempts >= 5
+            ? "failed"
+            : "pending",
           new Date(Date.now() + 2 ** job.attempts * 60000).toISOString(),
           job.id,
         ).run();
@@ -1373,8 +1466,10 @@ async function jobs(req: Request, env: Env) {
   return {
     sent,
     emailConfigured: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
+    whatsappConfigured: whatsappReady(env),
   };
 }
+const extraRoutes = featureHandlers({ one, rows, stmt, member, audit, iso });
 async function dispatch(req: Request, env: Env, path: string) {
   const db = env.DB,
     url = new URL(req.url);
@@ -1394,6 +1489,7 @@ async function dispatch(req: Request, env: Env, path: string) {
       pixCity: settings?.city ?? null,
       email: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
       runtime: "sites",
+      whatsapp: whatsappReady(env),
       operator: Boolean(
         identity(req)?.email.toLowerCase() ===
         env.PLATFORM_OWNER_EMAIL?.toLowerCase(),
@@ -1435,12 +1531,14 @@ async function dispatch(req: Request, env: Env, path: string) {
     return { received: true };
   }
   if (req.method === "GET") {
+    if (["setup", "updates", "customer", "reports"].includes(path))
+      return extraRoutes(req, env, path);
     if (path === "business")
       return business(
         db,
         short(url.searchParams.get("slug"), 1),
         url.searchParams.get("manual") ? req : undefined,
-      );
+      ).then((b) => (b ? { ...b, whatsapp_enabled: whatsappReady(env) } : b));
     if (path === "slots")
       return slots(
         db,
@@ -1571,6 +1669,31 @@ async function dispatch(req: Request, env: Env, path: string) {
       iso(),
     ).run();
     return { configured: true, key: PIX_KEY };
+  }
+  if (path === "customer") return extraRoutes(req, env, path, body);
+  if (path === "communication-preference") {
+    const token = z.string().min(40).max(100).parse(body.token);
+    const b = await one(
+      db,
+      "SELECT customer_id,tenant_id FROM appointments WHERE manage_hash=?",
+      await digest(token),
+    );
+    if (!b) throw Error("Link inválido");
+    if (body.whatsapp !== false) throw Error("Preferência inválida");
+    await db.batch([
+      stmt(
+        db,
+        "UPDATE customers SET whatsapp_opt_in=0 WHERE id=? AND tenant_id=?",
+        b.customer_id,
+        b.tenant_id,
+      ),
+      stmt(
+        db,
+        "UPDATE notification_jobs SET state='cancelled' WHERE channel='whatsapp' AND state IN ('pending','sending') AND appointment_id IN (SELECT id FROM appointments WHERE customer_id=?)",
+        b.customer_id,
+      ),
+    ]);
+    return { saved: true };
   }
   if (path === "data/query") return query(req, env, body);
   if (path === "data/rpc")
@@ -1709,6 +1832,47 @@ export default {
   async fetch(req: Request, env: Env) {
     const url = new URL(req.url);
     try {
+      if (url.pathname === "/robots.txt")
+        return new Response(
+          "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /painel\nDisallow: /pix\nDisallow: /operacao\nDisallow: /reserva/\nDisallow: /convite/\nSitemap: " +
+            url.origin +
+            "/sitemap.xml\n",
+          { headers: { "Content-Type": "text/plain; charset=utf-8" } },
+        );
+      if (url.pathname === "/sitemap.xml") {
+        const publicPages = env.DB
+          ? await rows(
+              env.DB,
+              "SELECT slug FROM tenants WHERE published=1 ORDER BY slug LIMIT 1000",
+            )
+          : [];
+        const paths = [
+          "/",
+          "/agendar",
+          "/termos",
+          "/privacidade",
+          "/suporte",
+          ...publicPages.map((p: Row) => "/a/" + encodeURIComponent(p.slug)),
+        ];
+        return new Response(
+          '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+            paths
+              .map(
+                (path) =>
+                  "<url><loc>" +
+                  new URL(path, url.origin).href.replace(/&/g, "&amp;") +
+                  "</loc></url>",
+              )
+              .join("") +
+            "</urlset>",
+          {
+            headers: {
+              "Content-Type": "application/xml; charset=utf-8",
+              "Cache-Control": "public,max-age=31536000,immutable",
+            },
+          },
+        );
+      }
       if (url.pathname.startsWith("/api/")) {
         if (
           req.method === "POST" &&
@@ -1742,16 +1906,47 @@ export default {
         return new Response(asset.content, {
           headers: {
             "Content-Type": asset.type,
-            "Cache-Control": "public,max-age=300",
+            "Cache-Control": "public,max-age=31536000,immutable",
           },
         });
       if (req.method !== "GET") return json({ error: "Método inválido" }, 405);
-      return new Response(html, {
+      const normalized = url.pathname.replace(/\/+$/, "") || "/";
+      const known =
+        [
+          "/",
+          "/agendar",
+          "/entrar",
+          "/cadastro",
+          "/recuperar",
+          "/painel",
+          "/pix",
+          "/demo",
+          "/operacao",
+          "/termos",
+          "/privacidade",
+          "/suporte",
+        ].includes(normalized) ||
+        /^\/(a|reserva|convite)\/[^/]+$/.test(normalized);
+      return new Response(normalized === "/" ? html : appHtml, {
+        status: known ? 200 : 404,
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
           "X-Content-Type-Options": "nosniff",
           "Referrer-Policy": "strict-origin-when-cross-origin",
+          ...(!known ||
+          [
+            "/painel",
+            "/pix",
+            "/operacao",
+            "/demo",
+            "/entrar",
+            "/cadastro",
+            "/recuperar",
+          ].includes(normalized) ||
+          /^\/(reserva|convite)\//.test(normalized)
+            ? { "X-Robots-Tag": "noindex, nofollow" }
+            : {}),
           "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
           "Content-Security-Policy":
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com",

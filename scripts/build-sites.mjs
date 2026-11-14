@@ -1,5 +1,14 @@
 import { build } from "esbuild";
-import { mkdir, writeFile, readFile, rm, copyFile, cp } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import {
+  mkdir,
+  writeFile,
+  readFile,
+  rm,
+  copyFile,
+  cp,
+  readdir,
+} from "node:fs/promises";
 import { resolve } from "node:path";
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist/client/assets", { recursive: true });
@@ -12,7 +21,7 @@ await build({
   format: "esm",
   target: "es2022",
   outdir: "dist/client/assets",
-  entryNames: "agenda",
+  entryNames: "agenda-[hash]",
   assetNames: "[name]-[hash]",
   jsx: "automatic",
   alias: {
@@ -31,9 +40,22 @@ await build({
     "process.env.NEXT_PUBLIC_RETENTION_POLICY": '""',
   },
 });
-const js = await readFile("dist/client/assets/agenda.js", "utf8"),
-  css = await readFile("dist/client/assets/agenda.css", "utf8");
-const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="theme-color" content="#ffffff"/><meta name="description" content="Seu dia em ordem. Seu tempo de volta. Agendamento online para profissionais e pequenos negócios."/><title>Agenda Clara — Seu tempo de volta</title><link rel="stylesheet" href="/assets/agenda.css"/></head><body><div id="root"></div><noscript>Ative o JavaScript para acessar a agenda.</noscript><script type="module" src="/assets/agenda.js"></script></body></html>`;
+const names = await readdir("dist/client/assets");
+const jsName = names.find((name) => name.endsWith(".js")),
+  cssName = names.find((name) => name.endsWith(".css"));
+if (!jsName || !cssName) throw Error("Assets de produção ausentes");
+const js = await readFile("dist/client/assets/" + jsName, "utf8"),
+  css = await readFile("dist/client/assets/" + cssName, "utf8");
+const marketingMarkup = execFileSync(
+  process.execPath,
+  ["--import", "tsx", "scripts/render-marketing.tsx"],
+  { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 },
+);
+const appHtml = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="theme-color" content="#ffffff"/><meta name="description" content="Seu dia em ordem. Seu tempo de volta. Agendamento online para profissionais e pequenos negócios."/><title>Agenda Clara — Seu tempo de volta</title><link rel="stylesheet" href="/assets/${cssName}"/></head><body><div id="root"></div><noscript>Ative o JavaScript para acessar a agenda.</noscript><script type="module" src="/assets/${jsName}"></script></body></html>`;
+const html = appHtml.replace(
+  '<div id="root"></div>',
+  '<div id="root" data-ssr="true">' + marketingMarkup + "</div>",
+);
 await build({
   entryPoints: ["hosted/worker.ts"],
   bundle: true,
@@ -54,13 +76,15 @@ await build({
           contents:
             "export const html=" +
             JSON.stringify(html) +
+            ";export const appHtml=" +
+            JSON.stringify(appHtml) +
             ";export const assets=" +
             JSON.stringify({
-              "/assets/agenda.js": {
+              ["/assets/" + jsName]: {
                 content: js,
                 type: "text/javascript; charset=utf-8",
               },
-              "/assets/agenda.css": {
+              ["/assets/" + cssName]: {
                 content: css,
                 type: "text/css; charset=utf-8",
               },
